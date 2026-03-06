@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Terms of Service — StoxPulse",
   description: "StoxPulse terms of service. Rules and guidelines for using our platform.",
+  alternates: {
+    canonical: "https://stoxpulse.com/terms",
+  },
 };
 
 export default function TermsPage() {

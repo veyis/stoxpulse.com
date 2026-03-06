@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy Policy — StoxPulse",
   description: "StoxPulse privacy policy. How we collect, use, and protect your data.",
+  alternates: {
+    canonical: "https://stoxpulse.com/privacy",
+  },
 };
 
 export default function PrivacyPage() {

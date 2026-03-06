@@ -16,6 +16,9 @@ export const metadata: Metadata = {
     "investment analysis software",
     "stock market analysis tools",
   ],
+  alternates: {
+    canonical: "https://stoxpulse.com/compare",
+  },
   openGraph: {
     title: "Compare Stock Analysis Tools — Best Platforms (2026) | StoxPulse",
     description:

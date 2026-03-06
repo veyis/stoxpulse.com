@@ -27,6 +27,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: `StoxPulse vs ${competitor.name} — Comparison (2026) | StoxPulse`,
     description: competitor.tldr,
+    alternates: {
+      canonical: `https://stoxpulse.com/compare/${slug}`,
+    },
     openGraph: {
       title: `StoxPulse vs ${competitor.name} — Comparison (2026)`,
       description: competitor.tldr,

@@ -11,8 +11,8 @@ import { competitors } from "@/data/competitors";
 
 const baseUrl = "https://stoxpulse.com";
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date();
+export default function sitemap(): MetadataRoute.Sitemap {
+  const now = "2026-03-06";
 
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [

@@ -25,6 +25,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: `7 Best ${competitor.name} Alternatives in 2026 | StoxPulse`,
     description: `Looking for ${competitor.name} alternatives? Compare the 7 best alternatives including StoxPulse, with features, pricing, and honest pros & cons for each.`,
+    alternates: {
+      canonical: `https://stoxpulse.com/alternatives/${slug}`,
+    },
     openGraph: {
       title: `7 Best ${competitor.name} Alternatives in 2026`,
       description: `Compare the best ${competitor.name} alternatives for stock analysis in 2026.`,

@@ -18,11 +18,11 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://stoxpulse.com"),
   title: {
     default:
-      "StoxPulse — AI Earnings Call Analysis & SEC Filing Monitor | Stock Intelligence",
+      "StoxPulse — AI Earnings Call & SEC Filing Analysis",
     template: "%s | StoxPulse",
   },
   description:
-    "StoxPulse is the AI research analyst serious investors wish they could afford. Reads every earnings call, analyzes every SEC filing, and scores every piece of news for your watchlist — so you make decisions on intelligence, not headlines. Starting at $0.",
+    "AI-powered stock intelligence. StoxPulse reads earnings calls, analyzes SEC filings, and scores news for your watchlist — invest on insight, not headlines.",
   keywords: [
     "earnings call summary",
     "10-K filing analyzer",

@@ -34,11 +34,19 @@ export function GET() {
     url(`${baseUrl}/tools/earnings-call-summarizer`, now, "weekly", 0.8),
     url(`${baseUrl}/tools/sec-filing-translator`, now, "weekly", 0.8),
     url(`${baseUrl}/tools/stock-sentiment-checker`, now, "weekly", 0.8),
+    url(`${baseUrl}/tools/earnings-calendar`, now, "daily", 0.8),
+    url(`${baseUrl}/tools/portfolio-risk-scanner`, now, "weekly", 0.8),
+    url(`${baseUrl}/tools/stock-screener`, now, "daily", 0.9),
+    url(`${baseUrl}/tools/dividend-calculator`, now, "weekly", 0.8),
+    url(`${baseUrl}/tools/dcf-calculator`, now, "weekly", 0.8),
+    url(`${baseUrl}/tools/insider-tracker`, now, "daily", 0.8),
+    url(`${baseUrl}/tools/compare-stocks`, now, "weekly", 0.8),
     url(`${baseUrl}/glossary`, now, "weekly", 0.7),
     url(`${baseUrl}/compare`, now, "weekly", 0.7),
     url(`${baseUrl}/earnings`, now, "daily", 0.8),
     url(`${baseUrl}/privacy`, now, "monthly", 0.3),
     url(`${baseUrl}/terms`, now, "monthly", 0.3),
+    url(`${baseUrl}/about`, now, "monthly", 0.6),
 
     // Stock pages
     ...sp500Stocks.map((stock) =>

@@ -112,19 +112,38 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "Organization",
+              "@id": "https://stoxpulse.com/#organization",
               name: "StoxPulse",
               url: "https://stoxpulse.com",
-              logo: "https://stoxpulse.com/images/related/logo1.png",
+              logo: {
+                "@type": "ImageObject",
+                url: "https://stoxpulse.com/images/related/logo1.png",
+                width: 512,
+                height: 512,
+              },
               description:
-                "AI-powered stock intelligence platform that reads earnings calls, analyzes SEC filings, and scores financial news for retail investors.",
+                "AI-powered stock intelligence platform that reads earnings calls, analyzes SEC filings, scores financial news, and tracks insider transactions — giving retail investors institutional-grade research.",
+              foundingDate: "2026",
+              areaServed: "Worldwide",
+              knowsAbout: [
+                "Stock market analysis",
+                "Earnings call analysis",
+                "SEC filing analysis",
+                "Insider trading",
+                "Financial statements",
+                "AI investing tools",
+                "Retail investor research",
+                "S&P 500 stocks",
+              ],
               sameAs: [
                 "https://x.com/stoxpulse",
+                "https://twitter.com/stoxpulse",
               ],
-              foundingDate: "2026",
               contactPoint: {
                 "@type": "ContactPoint",
                 contactType: "customer support",
                 url: "https://stoxpulse.com",
+                availableLanguage: "English",
               },
             }),
           }}
@@ -135,8 +154,12 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebSite",
+              "@id": "https://stoxpulse.com/#website",
               name: "StoxPulse",
               url: "https://stoxpulse.com",
+              publisher: {
+                "@id": "https://stoxpulse.com/#organization",
+              },
               potentialAction: {
                 "@type": "SearchAction",
                 target: {
@@ -145,6 +168,10 @@ export default function RootLayout({
                     "https://stoxpulse.com/stocks/{search_term_string}",
                 },
                 "query-input": "required name=search_term_string",
+              },
+              speakable: {
+                "@type": "SpeakableSpecification",
+                cssSelector: ["h1", "h2", ".speakable"],
               },
             }),
           }}

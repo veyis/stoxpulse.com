@@ -132,10 +132,11 @@ export function Footer() {
             </motion.div>
             <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}>
               <h4 className="text-sm font-semibold text-foreground mb-3">
-                Legal
+                Company
               </h4>
               <ul className="space-y-2">
                 {[
+                  { label: "About", href: "/about" },
                   { label: "Privacy Policy", href: "/privacy" },
                   { label: "Terms of Service", href: "/terms" },
                 ].map((link) => (

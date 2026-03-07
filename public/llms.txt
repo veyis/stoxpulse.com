@@ -1,0 +1,72 @@
+# StoxPulse
+
+> AI-powered stock intelligence platform that reads earnings calls, analyzes SEC filings, scores financial news, and tracks insider transactions — giving retail investors institutional-grade research at a fraction of the cost.
+
+## What StoxPulse Does
+
+StoxPulse is a financial intelligence web application designed for self-directed retail investors. It uses AI (Google Gemini) to automate the work of a professional research analyst:
+
+- **Earnings Call Analysis**: Reads every earnings call transcript for S&P 500 stocks, extracts key takeaways, scores management sentiment (bullish/neutral/bearish), and flags red flags or unmet promises.
+- **SEC Filing Intelligence**: Translates 10-K, 10-Q, 8-K, and Form 4 filings from regulatory legalese into plain English summaries with AI-highlighted risk factors.
+- **News Sentiment Scoring**: Scores every piece of financial news from 1–10 for importance and sentiment, filtered by your watchlist.
+- **Insider Transaction Tracking**: Monitors SEC Form 4 filings to surface insider buying and selling activity with AI context on whether trades are routine or notable.
+- **AI Trading Signals**: Generates institutional-grade buy/sell/hold signals based on combined analysis of fundamentals, technicals, insider activity, and analyst consensus.
+- **Financial Data**: Provides real-time quotes, historical prices, financial statements, balance sheets, cash flow statements, analyst estimates, and earnings history for all S&P 500 stocks.
+
+## Target Users
+
+Self-directed retail investors, finance enthusiasts, and individual portfolio managers who want research-grade stock analysis without paying for Bloomberg or institutional research services.
+
+## Key Pages
+
+- [Homepage](https://stoxpulse.com) — Product overview and waitlist
+- [S&P 500 Stock Analysis](https://stoxpulse.com/stocks) — Browse all 500 stocks with AI analysis
+- [AI Signals](https://stoxpulse.com/signals) — AI-generated buy/sell/hold signals
+- [Earnings Calendar](https://stoxpulse.com/earnings) — Upcoming earnings with AI previews
+- [Free Tools](https://stoxpulse.com/tools) — Free AI-powered investor tools
+- [Blog](https://stoxpulse.com/blog) — Educational content on AI investing, earnings analysis, SEC filings
+- [Glossary](https://stoxpulse.com/glossary) — Financial terms explained clearly
+
+## Free Tools Available
+
+- [SEC Filing Translator](https://stoxpulse.com/tools/sec-filing-translator) — Paste any SEC filing text and get a plain-English AI summary
+- [Stock Sentiment Checker](https://stoxpulse.com/tools/stock-sentiment-checker) — Check AI-scored sentiment for any stock
+- [Earnings Call Summarizer](https://stoxpulse.com/tools/earnings-call-summarizer) — Summarize earnings call transcripts with AI
+
+## Stock Data Coverage
+
+Full AI analysis for all S&P 500 stocks, including:
+- Real-time price quotes and historical data
+- Earnings history (quarterly and annual EPS, revenue, margins)
+- SEC filings (10-K, 10-Q, 8-K, Form 4 insider transactions)
+- Analyst recommendations and price targets
+- Insider trading activity from SEC EDGAR
+- AI-generated trading signals with confidence scores and rationale
+
+## Data Sources
+
+- SEC EDGAR (filings, insider trades) — primary free source
+- Finnhub (real-time quotes, news, recommendations)
+- Financial Modeling Prep (financial statements, ratios, historical data)
+- Google Gemini AI (analysis, signal generation, summaries)
+
+## Pricing
+
+- **Free tier**: Limited stock pages, 3 free tool uses/day
+- **Pro ($29/month)**: Full S&P 500 access, unlimited signals, daily AI digest, earnings alerts
+- **Institutional ($59/month)**: Multi-portfolio, API access, priority AI processing
+
+## Company Information
+
+- **Founded**: 2026
+- **Website**: https://stoxpulse.com
+- **Twitter/X**: https://x.com/stoxpulse
+- **Contact**: Via website contact form at https://stoxpulse.com
+
+## Important Disclaimers
+
+StoxPulse provides financial information and AI-generated analysis for educational and informational purposes only. Nothing on this platform constitutes investment advice, a recommendation, or a solicitation to buy or sell any security. AI analysis may contain errors. Always consult a qualified financial advisor and verify all information independently before making investment decisions.
+
+## Content Freshness
+
+Stock data and AI signals are updated daily. Earnings and filing data is refreshed within 24 hours of SEC EDGAR publication.

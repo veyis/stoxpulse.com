@@ -122,9 +122,11 @@ export default function ToolsPage() {
                 href={tool.href}
                 className="group relative rounded-2xl bg-surface-1 border border-border p-6 hover:border-brand/40 transition-colors duration-200"
               >
-                <span className="absolute top-4 right-4 inline-flex items-center rounded-full bg-warning/10 border border-warning/20 px-2.5 py-0.5 text-xs font-medium text-warning">
-                  Coming Soon
-                </span>
+                {tool.name !== "SEC Filing Translator" && (
+                  <span className="absolute top-4 right-4 inline-flex items-center rounded-full bg-warning/10 border border-warning/20 px-2.5 py-0.5 text-xs font-medium text-warning">
+                    Coming Soon
+                  </span>
+                )}
                 <div className="flex items-center justify-center size-12 rounded-xl bg-brand/10 border border-brand/20 mb-4">
                   <tool.icon className="size-6 text-brand" />
                 </div>

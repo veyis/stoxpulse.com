@@ -13,10 +13,8 @@ import { Footer } from "@/components/landing/footer";
 import { StockHeader } from "@/components/stocks/stock-header";
 import { StockTabs } from "@/components/stocks/stock-tabs";
 import { AIInsightCard } from "@/components/stocks/ai-insight-card";
-import { CommodityStats } from "@/components/stocks/commodity-stats";
+import { CommodityLivePrice } from "@/components/stocks/commodity-live-price";
 import { PriceChart } from "@/components/stocks/price-chart";
-import { FiftyTwoWeekBar } from "@/components/stocks/fifty-two-week-bar";
-import { StockPrice } from "@/components/stocks/stock-price";
 import {
   sp500Stocks,
   getStockByTicker,
@@ -378,10 +376,7 @@ export default async function StockPage({ params }: Props) {
 // ── Commodity Detail Page ────────────────────────────────────────
 
 async function CommodityPage({ commodity }: { commodity: CommodityInfo }) {
-  const [quote, historicalPrices] = await Promise.all([
-    getQuote(commodity.symbol).catch(() => null),
-    getHistoricalPrices(commodity.symbol).catch(() => []),
-  ]);
+  const historicalPrices = await getHistoricalPrices(commodity.symbol).catch(() => []);
 
   const breadcrumbSchema = {
     "@context": "https://schema.org",
@@ -438,35 +433,18 @@ async function CommodityPage({ commodity }: { commodity: CommodityInfo }) {
                 </div>
               </div>
 
-              {quote && (
-                <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-                  <StockPrice
-                    price={quote.price}
-                    change={quote.change}
-                    changePercent={quote.changePercent}
-                    size="xl"
-                  />
-                  {quote.high52w && quote.low52w && (
-                    <div className="sm:ml-auto sm:w-64">
-                      <FiftyTwoWeekBar low={quote.low52w} high={quote.high52w} current={quote.price} />
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </header>
+
+          {/* Live Price + Stats (client component, polls every 30s) */}
+          <section className="mb-8">
+            <CommodityLivePrice symbol={commodity.symbol} unit={commodity.unit} />
+          </section>
 
           {/* Price Chart */}
           {historicalPrices.length > 0 && (
             <section className="mb-8">
               <PriceChart prices={historicalPrices} ticker={commodity.symbol} />
-            </section>
-          )}
-
-          {/* Key Stats */}
-          {quote && (
-            <section className="mb-8">
-              <CommodityStats quote={quote} unit={commodity.unit} />
             </section>
           )}
 

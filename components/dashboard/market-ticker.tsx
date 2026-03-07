@@ -11,20 +11,17 @@ interface TickerQuote {
   changePercent: number;
 }
 
-const NON_STOCK_SYMBOLS = new Set(["XAUUSD", "XAGUSD"]);
-
 function TickerItem({ q, onNavigate }: { q: TickerQuote; onNavigate: (symbol: string) => void }) {
   const isPositive = q.changePercent >= 0;
-  const isClickable = !NON_STOCK_SYMBOLS.has(q.ticker ?? q.symbol);
   return (
     <span
-      role={isClickable ? "link" : undefined}
-      tabIndex={isClickable ? 0 : undefined}
-      onMouseDown={isClickable ? (e) => {
+      role="link"
+      tabIndex={0}
+      onMouseDown={(e) => {
         e.preventDefault();
         onNavigate(q.ticker ?? q.symbol);
-      } : undefined}
-      className={`inline-flex items-center gap-1.5 px-5 whitespace-nowrap transition-opacity ${isClickable ? "cursor-pointer hover:opacity-70" : ""}`}
+      }}
+      className="inline-flex items-center gap-1.5 px-5 whitespace-nowrap cursor-pointer hover:opacity-70 transition-opacity"
     >
       <span className="font-mono font-bold text-sm text-foreground">{q.symbol}</span>
       <span className="font-mono text-sm tabular-nums text-muted-foreground">

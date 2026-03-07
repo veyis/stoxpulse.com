@@ -67,13 +67,31 @@ export function Footer() {
             </motion.div>
             <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}>
               <h4 className="text-sm font-semibold text-foreground mb-3">
+                Free Tools
+              </h4>
+              <ul className="space-y-2 mb-6">
+                {[
+                  { label: "SEC Form 4 Decoder", href: "/tools/sec-filing-translator" },
+                  { label: "Earnings Summarizer", href: "/tools/earnings-call-summarizer" },
+                  { label: "View All Tools", href: "/tools" },
+                ].map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <h4 className="text-sm font-semibold text-foreground mb-3">
                 Learn
               </h4>
               <ul className="space-y-2">
                 {[
                   { label: "Blog", href: "/blog" },
                   { label: "Glossary", href: "/glossary" },
-                  { label: "Signal Methodology", href: "/signals/methodology" },
                   { label: "Compare Tools", href: "/compare" },
                 ].map((link) => (
                   <li key={link.label}>

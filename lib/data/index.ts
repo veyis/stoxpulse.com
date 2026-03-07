@@ -3,10 +3,11 @@
 // Orchestrates multiple data providers with fallback chains.
 // Provider priority: paid APIs (better data) > free APIs > static data
 //
-// EDGAR: financials, filings, insider trades (FREE)
-// Finnhub: quotes, news, calendar, profiles (FREE)
-// FMP: quotes, financials, profiles, news, ratios, balance sheet, cash flow (PAID - $22/mo)
-// API Ninjas: earnings transcripts (PAID - $39/mo)
+// EDGAR: financials, filings (FREE)
+// Finnhub: quotes, news, calendar, profiles, recommendations (FREE)
+// FMP: quotes, financials, profiles, news, ratios, balance sheet, cash flow,
+//      insider trading, price targets, upgrades/downgrades, earnings surprises,
+//      peers, DCF, historical prices, analyst estimates (PAID - $22/mo Starter)
 
 import type { StockQuote, SECFiling, InsiderTransaction } from "@/lib/types/stock";
 import type {
@@ -15,16 +16,21 @@ import type {
   CompanyProfile,
   NewsItem,
   EarningsCalendarEntry,
-  EarningsTranscript,
   HistoricalPrice,
   AnalystRecommendation,
   AnalystEstimate,
+  InsiderTrade,
+  PriceTarget,
+  UpgradeDowngrade,
+  EarningsSurprise,
+  StockPeer,
+  DCFValuation,
+  EarningsTranscript,
 } from "./types";
 import { isProviderEnabled } from "./config";
 import { edgarProvider } from "./providers/edgar";
 import { finnhubProvider } from "./providers/finnhub";
 import { fmpProvider } from "./providers/fmp";
-import { apiNinjasProvider } from "./providers/api-ninjas";
 import type { AIStockAnalysis } from "@/lib/ai/types";
 
 // ── Quote (price data) ────────────────────────────────────────────
@@ -106,11 +112,25 @@ export async function getFilings(ticker: string, limit = 20): Promise<SECFiling[
   return edgarProvider.getFilings!(ticker, limit);
 }
 
-// ── Insider Transactions ──────────────────────────────────────────
-// Source: EDGAR Form 4 (free)
+// ── Insider Trading ─────────────────────────────────────────────
+// Source: FMP (parsed with $ amounts) — replaces incomplete EDGAR Form 4 metadata
 
 export async function getInsiderTrades(ticker: string, limit = 20): Promise<InsiderTransaction[]> {
-  return edgarProvider.getInsiderTrades!(ticker, limit);
+  if (isProviderEnabled("fmp")) {
+    const trades = await fmpProvider.getInsiderTrading!(ticker, limit);
+    // Map InsiderTrade -> InsiderTransaction
+    return (trades ?? []).map((t) => ({
+      name: t.name,
+      title: t.title,
+      type: t.transactionType === "Buy" ? "Buy" : "Sale",
+      shares: t.shares,
+      pricePerShare: t.pricePerShare,
+      totalValue: t.totalValue,
+      date: t.date,
+      isRoutine: false,
+    } as InsiderTransaction));
+  }
+  return [];
 }
 
 // ── News ──────────────────────────────────────────────────────────
@@ -158,15 +178,15 @@ export async function getEarningsCalendar(
 }
 
 // ── Earnings Transcripts ──────────────────────────────────────────
-// Source: API Ninjas (paid — the only provider for this in Path B)
+// Source: FMP (included in $22/mo plan)
 
 export async function getTranscript(
   ticker: string,
   quarter: number,
   year: number
 ): Promise<EarningsTranscript | null> {
-  if (isProviderEnabled("apiNinjas")) {
-    return apiNinjasProvider.getTranscript!(ticker, quarter, year);
+  if (isProviderEnabled("fmp")) {
+    return fmpProvider.getTranscript!(ticker, quarter, year);
   }
   return null;
 }
@@ -201,6 +221,56 @@ export async function getAnalystEstimates(ticker: string): Promise<AnalystEstima
   return [];
 }
 
+// ── Price Targets ───────────────────────────────────────────────
+// Source: FMP
+
+export async function getPriceTargets(ticker: string): Promise<PriceTarget[]> {
+  if (isProviderEnabled("fmp")) {
+    return fmpProvider.getPriceTargets!(ticker);
+  }
+  return [];
+}
+
+// ── Upgrades / Downgrades ───────────────────────────────────────
+// Source: FMP
+
+export async function getUpgradesDowngrades(ticker: string): Promise<UpgradeDowngrade[]> {
+  if (isProviderEnabled("fmp")) {
+    return fmpProvider.getUpgradesDowngrades!(ticker);
+  }
+  return [];
+}
+
+// ── Earnings Surprises ──────────────────────────────────────────
+// Source: FMP (historical beat/miss track record)
+
+export async function getEarningsSurprises(ticker: string): Promise<EarningsSurprise[]> {
+  if (isProviderEnabled("fmp")) {
+    return fmpProvider.getEarningsSurprises!(ticker);
+  }
+  return [];
+}
+
+// ── Stock Peers ─────────────────────────────────────────────────
+// Source: FMP
+
+export async function getPeers(ticker: string): Promise<StockPeer[]> {
+  if (isProviderEnabled("fmp")) {
+    return fmpProvider.getPeers!(ticker);
+  }
+  return [];
+}
+
+// ── DCF Valuation ───────────────────────────────────────────────
+// Source: FMP (discounted cash flow fair value)
+
+export async function getDCF(ticker: string): Promise<DCFValuation | null> {
+  if (isProviderEnabled("fmp")) {
+    return fmpProvider.getDCF!(ticker);
+  }
+  return null;
+}
+
 // ── Aggregate: Full stock data for a page ─────────────────────────
 // Used by /stocks/[ticker] ISR pages
 
@@ -217,13 +287,22 @@ export interface StockPageData {
   historicalPrices: HistoricalPrice[];
   recommendations: AnalystRecommendation[];
   analystEstimates: AnalystEstimate[];
+  priceTargets: PriceTarget[];
+  upgradesDowngrades: UpgradeDowngrade[];
+  earningsSurprises: EarningsSurprise[];
+  peers: StockPeer[];
+  dcf: DCFValuation | null;
   aiAnalysis: AIStockAnalysis | null;
 }
 
 export async function getStockPageData(ticker: string): Promise<StockPageData> {
   // Run all fetches in parallel for speed
-  // Note: earnings calendar dates are computed in the API route, not here (avoids new Date() before data access in SSG)
-  const [quote, profile, financials, balanceSheet, cashFlow, ratios, filings, insiderTrades, news, historicalPrices, recommendations, analystEstimates] = await Promise.all([
+  const [
+    quote, profile, financials, balanceSheet, cashFlow, ratios,
+    filings, insiderTrades, news, historicalPrices,
+    recommendations, analystEstimates,
+    priceTargets, upgradesDowngrades, earningsSurprises, peers, dcf,
+  ] = await Promise.all([
     getQuote(ticker).catch(() => null),
     getProfile(ticker).catch(() => null),
     getFinancials(ticker).catch(() => null),
@@ -236,10 +315,21 @@ export async function getStockPageData(ticker: string): Promise<StockPageData> {
     getHistoricalPrices(ticker).catch(() => []),
     getRecommendations(ticker).catch(() => []),
     getAnalystEstimates(ticker).catch(() => []),
+    getPriceTargets(ticker).catch(() => []),
+    getUpgradesDowngrades(ticker).catch(() => []),
+    getEarningsSurprises(ticker).catch(() => []),
+    getPeers(ticker).catch(() => []),
+    getDCF(ticker).catch(() => null),
   ]);
 
   // AI analysis is fetched client-side via /api/ai/signals to avoid blocking SSG/ISR
-  return { quote, profile, financials, balanceSheet, cashFlow, ratios, filings, insiderTrades, news, historicalPrices, recommendations, analystEstimates, aiAnalysis: null };
+  return {
+    quote, profile, financials, balanceSheet, cashFlow, ratios,
+    filings, insiderTrades, news, historicalPrices,
+    recommendations, analystEstimates,
+    priceTargets, upgradesDowngrades, earningsSurprises, peers, dcf,
+    aiAnalysis: null,
+  };
 }
 
 // ── Health check: which providers are active ──────────────────────
@@ -249,6 +339,5 @@ export function getActiveProviders(): Record<string, boolean> {
     edgar: true, // always available
     finnhub: isProviderEnabled("finnhub"),
     fmp: isProviderEnabled("fmp"),
-    apiNinjas: isProviderEnabled("apiNinjas"),
   };
 }

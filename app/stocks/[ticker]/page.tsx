@@ -287,7 +287,7 @@ export default async function StockPage({ params }: Props) {
             <h2 className="font-display text-xl font-bold text-foreground mb-4">
               Deep Dive into <span className="text-brand">{stock.ticker}</span>
             </h2>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <Link
                 href={`/stocks/${tickerToSlug(stock.ticker)}/insider-trading`}
                 className="group flex items-center gap-4 rounded-xl border border-border/50 bg-surface-1/40 backdrop-blur-md px-5 py-4 transition-all duration-300 hover:border-brand/30 hover:bg-surface-1/60 hover:-translate-y-0.5 hover:shadow-md hover:shadow-brand/5"
@@ -300,7 +300,24 @@ export default async function StockPage({ params }: Props) {
                     {stock.ticker} Insider Trading
                   </span>
                   <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
-                    Track Form 4 filings — see who&apos;s buying &amp; selling
+                    Track Form 4 filings — who&apos;s buying &amp; selling
+                  </p>
+                </div>
+                <ArrowRight className="size-4 shrink-0 text-muted-foreground/30 group-hover:text-brand transition-all duration-300 group-hover:translate-x-1" />
+              </Link>
+              <Link
+                href={`/stocks/${tickerToSlug(stock.ticker)}/earnings`}
+                className="group flex items-center gap-4 rounded-xl border border-border/50 bg-surface-1/40 backdrop-blur-md px-5 py-4 transition-all duration-300 hover:border-brand/30 hover:bg-surface-1/60 hover:-translate-y-0.5 hover:shadow-md hover:shadow-brand/5"
+              >
+                <div className="flex items-center justify-center size-10 rounded-lg bg-brand/10 border border-brand/20 shrink-0">
+                  <TrendingUp className="size-5 text-brand" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="font-display text-[15px] font-semibold text-foreground group-hover:text-brand transition-colors">
+                    {stock.ticker} Earnings History
+                  </span>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                    Revenue, EPS &amp; quarterly results
                   </p>
                 </div>
                 <ArrowRight className="size-4 shrink-0 text-muted-foreground/30 group-hover:text-brand transition-all duration-300 group-hover:translate-x-1" />
@@ -317,7 +334,7 @@ export default async function StockPage({ params }: Props) {
                     {stock.ticker} Sentiment Check
                   </span>
                   <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
-                    AI-powered news, social &amp; analyst sentiment score
+                    AI news, social &amp; analyst score
                   </p>
                 </div>
                 <ArrowRight className="size-4 shrink-0 text-muted-foreground/30 group-hover:text-brand transition-all duration-300 group-hover:translate-x-1" />

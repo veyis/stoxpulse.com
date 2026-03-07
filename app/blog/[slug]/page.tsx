@@ -203,6 +203,47 @@ export default async function BlogPostPage({ params }: PageProps) {
             ))}
           </div>
 
+          {/* Contextual Tool Links — builds topical authority */}
+          <div className="mt-10 rounded-2xl border border-brand/20 bg-brand/5 p-6">
+            <h3 className="font-display text-lg font-bold text-foreground mb-4">
+              Try These Free Tools
+            </h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(post.cluster === "sec-filings" || post.cluster === "earnings") && (
+                <Link
+                  href="/tools/sec-filing-translator"
+                  className="group flex items-center gap-3 rounded-xl border border-border/50 bg-background px-4 py-3 hover:border-brand/30 transition-all"
+                >
+                  <span className="font-semibold text-sm text-foreground group-hover:text-brand transition-colors flex-1">SEC Form 4 Decoder</span>
+                  <ArrowRight className="size-4 text-muted-foreground/30 group-hover:text-brand transition-all" />
+                </Link>
+              )}
+              <Link
+                href="/tools/stock-sentiment-checker"
+                className="group flex items-center gap-3 rounded-xl border border-border/50 bg-background px-4 py-3 hover:border-brand/30 transition-all"
+              >
+                <span className="font-semibold text-sm text-foreground group-hover:text-brand transition-colors flex-1">Stock Sentiment Checker</span>
+                <ArrowRight className="size-4 text-muted-foreground/30 group-hover:text-brand transition-all" />
+              </Link>
+              {(post.cluster === "earnings" || post.cluster === "ai-investing") && (
+                <Link
+                  href="/tools/earnings-call-summarizer"
+                  className="group flex items-center gap-3 rounded-xl border border-border/50 bg-background px-4 py-3 hover:border-brand/30 transition-all"
+                >
+                  <span className="font-semibold text-sm text-foreground group-hover:text-brand transition-colors flex-1">Earnings Call Summarizer</span>
+                  <ArrowRight className="size-4 text-muted-foreground/30 group-hover:text-brand transition-all" />
+                </Link>
+              )}
+              <Link
+                href="/stocks"
+                className="group flex items-center gap-3 rounded-xl border border-border/50 bg-background px-4 py-3 hover:border-brand/30 transition-all"
+              >
+                <span className="font-semibold text-sm text-foreground group-hover:text-brand transition-colors flex-1">Browse S&amp;P 500 Stocks</span>
+                <ArrowRight className="size-4 text-muted-foreground/30 group-hover:text-brand transition-all" />
+              </Link>
+            </div>
+          </div>
+
           {/* Tags */}
           <div className="mt-12 pt-8 border-t border-border">
             <div className="flex flex-wrap gap-2">

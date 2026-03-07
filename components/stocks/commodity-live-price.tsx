@@ -290,6 +290,136 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
     return Math.sqrt(variance) * Math.sqrt(252) * 100; // annualized %
   }, [historicalPrices]);
 
+  // ── Trend Analysis (EMA alignment + golden/death cross) ──
+  const trendAnalysis = useMemo(() => {
+    const ema9 = technicals?.ema9;
+    const ema21 = technicals?.ema21;
+    const ema50 = technicals?.ema50;
+    const sma50 = technicals?.sma50 ?? quote?.priceAvg50;
+    const sma200 = technicals?.sma200 ?? quote?.priceAvg200;
+    if (!quote || !ema9 || !ema21) return null;
+
+    // EMA ribbon: bullish when 9 > 21 > 50
+    const emaRibbonBullish = ema9 > ema21 && (!ema50 || ema21 > ema50);
+    const emaRibbonBearish = ema9 < ema21 && (!ema50 || ema21 < ema50);
+
+    // Golden Cross: SMA 50 above SMA 200; Death Cross: SMA 50 below SMA 200
+    let crossType: "golden" | "death" | null = null;
+    if (sma50 && sma200) {
+      if (sma50 > sma200) crossType = "golden";
+      else crossType = "death";
+    }
+
+    // Price vs all MAs — count above
+    const maValues = [ema9, ema21, ema50, sma50, sma200].filter(Boolean) as number[];
+    const aboveCount = maValues.filter(v => quote.price > v).length;
+
+    // Trend strength: 0-5 based on how many MAs price is above
+    const strength = maValues.length > 0 ? aboveCount / maValues.length : 0.5;
+    const trendLabel = strength >= 0.8 ? "Strong Uptrend" : strength >= 0.6 ? "Uptrend" :
+      strength <= 0.2 ? "Strong Downtrend" : strength <= 0.4 ? "Downtrend" : "Sideways";
+
+    return { emaRibbonBullish, emaRibbonBearish, crossType, strength, trendLabel, aboveCount, totalMAs: maValues.length };
+  }, [technicals, quote]);
+
+  // ── AI Technical Summary (auto-generated paragraph) ──
+  const aiSummary = useMemo(() => {
+    if (!quote || !technicals) return null;
+    const parts: string[] = [];
+    const _rsi = technicals.rsi14;
+
+    // Price action
+    const dayChange = quote.changePercent;
+    if (Math.abs(dayChange) > 2) {
+      parts.push(`${shortName} is ${dayChange > 0 ? "surging" : "dropping"} ${Math.abs(dayChange).toFixed(1)}% today to ${fmtPrice(quote.price)}.`);
+    } else {
+      parts.push(`${shortName} is trading at ${fmtPrice(quote.price)}, ${dayChange >= 0 ? "up" : "down"} ${Math.abs(dayChange).toFixed(2)}% on the day.`);
+    }
+
+    // Trend
+    if (trendAnalysis) {
+      if (trendAnalysis.strength >= 0.8) {
+        parts.push(`The trend is firmly bullish with price above all ${trendAnalysis.totalMAs} moving averages.`);
+      } else if (trendAnalysis.strength >= 0.6) {
+        parts.push(`The trend leans bullish \u2014 price holds above ${trendAnalysis.aboveCount} of ${trendAnalysis.totalMAs} key moving averages.`);
+      } else if (trendAnalysis.strength <= 0.2) {
+        parts.push(`The trend is bearish with price below all ${trendAnalysis.totalMAs} moving averages.`);
+      } else if (trendAnalysis.strength <= 0.4) {
+        parts.push(`Price is weakening, trading below ${trendAnalysis.totalMAs - trendAnalysis.aboveCount} of ${trendAnalysis.totalMAs} moving averages.`);
+      } else {
+        parts.push(`The trend is mixed \u2014 price sits between key moving averages suggesting consolidation.`);
+      }
+      if (trendAnalysis.crossType === "golden") {
+        parts.push("A Golden Cross (SMA 50 > SMA 200) supports the bullish case.");
+      } else if (trendAnalysis.crossType === "death") {
+        parts.push("A Death Cross (SMA 50 < SMA 200) signals longer-term caution.");
+      }
+    }
+
+    // RSI
+    if (_rsi != null) {
+      if (_rsi > 75) parts.push(`Daily RSI at ${_rsi.toFixed(0)} is deep in overbought territory \u2014 a pullback may be due.`);
+      else if (_rsi > 65) parts.push(`Daily RSI at ${_rsi.toFixed(0)} is elevated but not yet extreme.`);
+      else if (_rsi < 25) parts.push(`Daily RSI at ${_rsi.toFixed(0)} signals deeply oversold conditions \u2014 a bounce is possible.`);
+      else if (_rsi < 35) parts.push(`RSI at ${_rsi.toFixed(0)} is approaching oversold levels.`);
+    }
+
+    // Bollinger
+    if (bollingerBands && quote.price >= bollingerBands.upper) {
+      parts.push("Price has breached the upper Bollinger Band, suggesting overextension.");
+    } else if (bollingerBands && quote.price <= bollingerBands.lower) {
+      parts.push("Price is below the lower Bollinger Band \u2014 a mean reversion bounce is possible.");
+    }
+
+    // Volatility
+    if (volatility != null) {
+      if (volatility > 30) parts.push(`Volatility is elevated at ${volatility.toFixed(0)}% annualized \u2014 expect wider swings.`);
+      else if (volatility < 12) parts.push(`Volatility is unusually low at ${volatility.toFixed(0)}% \u2014 a breakout move may be building.`);
+    }
+
+    // Upcoming catalyst
+    if (context?.economicEvents?.[0]) {
+      const evt = context.economicEvents[0];
+      const evtDate = new Date(evt.date);
+      const daysUntil = Math.ceil((evtDate.getTime() - Date.now()) / 86400000);
+      if (daysUntil >= 0 && daysUntil <= 7) {
+        parts.push(`Key catalyst ahead: ${evt.event}${daysUntil === 0 ? " today" : daysUntil === 1 ? " tomorrow" : ` in ${daysUntil} days`}.`);
+      }
+    }
+
+    return parts.join(" ");
+  }, [quote, technicals, trendAnalysis, bollingerBands, volatility, context, shortName]);
+
+  // ── Key Price Levels (psychological + pivot) ──
+  const keyLevels = useMemo(() => {
+    if (!quote) return [];
+    const price = quote.price;
+    // Generate round number levels around current price
+    const step = price > 1000 ? 100 : price > 100 ? 10 : 1;
+    const base = Math.floor(price / step) * step;
+    const levels: { price: number; label: string; type: "resistance" | "support" | "current" }[] = [];
+    for (let i = -2; i <= 3; i++) {
+      const lvl = base + i * step;
+      if (lvl <= 0) continue;
+      const dist = ((price - lvl) / lvl) * 100;
+      if (Math.abs(dist) > 5) continue; // only show levels within 5%
+      levels.push({
+        price: lvl,
+        label: `$${lvl.toLocaleString()}`,
+        type: lvl < price ? "support" : lvl > price ? "resistance" : "current",
+      });
+    }
+    return levels;
+  }, [quote]);
+
+  // ── Calculator state ──
+  const [calcGrams, setCalcGrams] = useState<string>("1");
+  const calcValue = useMemo(() => {
+    const g = parseFloat(calcGrams);
+    if (isNaN(g) || g < 0 || !quote) return null;
+    return g * (quote.price / TROY_OZ_TO_GRAM);
+  }, [calcGrams, quote]);
+
   // ── Loading skeleton ──
   if (!quote) {
     return (
@@ -457,6 +587,58 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
         </div>
       </div>
 
+      {/* ─── AI TECHNICAL SUMMARY ────────────────────────── */}
+      {aiSummary && (
+        <div className="rounded-2xl border border-brand/20 bg-gradient-to-r from-brand/5 via-card to-card p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 flex items-center justify-center size-8 rounded-lg bg-brand/10">
+              <svg className="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a2 2 0 0 1-2 2h-1v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2H6a2 2 0 0 1-2-2v-1a3 3 0 0 1 3-3h3V9.4C8.8 8.8 8 7.5 8 6a4 4 0 0 1 4-4z" /></svg>
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-1.5">
+                <h3 className="text-sm font-semibold text-foreground">AI Market Summary</h3>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-brand/10 text-brand uppercase tracking-wider">Auto-generated</span>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">{aiSummary}</p>
+            </div>
+          </div>
+          {/* Trend Strength Bar */}
+          {trendAnalysis && (
+            <div className="mt-4 pt-4 border-t border-border/20">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Trend Strength</span>
+                <div className="flex items-center gap-2">
+                  <span className={cn("text-xs font-bold",
+                    trendAnalysis.strength >= 0.6 ? "text-positive" : trendAnalysis.strength <= 0.4 ? "text-negative" : "text-muted-foreground"
+                  )}>
+                    {trendAnalysis.trendLabel}
+                  </span>
+                  {trendAnalysis.crossType && (
+                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded",
+                      trendAnalysis.crossType === "golden" ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative"
+                    )}>
+                      {trendAnalysis.crossType === "golden" ? "Golden Cross" : "Death Cross"}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                <div
+                  className={cn("h-full rounded-full transition-all duration-500",
+                    trendAnalysis.strength >= 0.6 ? "bg-positive" : trendAnalysis.strength <= 0.4 ? "bg-negative" : "bg-muted-foreground/40"
+                  )}
+                  style={{ width: `${trendAnalysis.strength * 100}%` }}
+                />
+              </div>
+              <div className="flex justify-between mt-1">
+                <span className="text-[9px] text-negative/60">Bearish</span>
+                <span className="text-[9px] text-positive/60">Bullish</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ─── TECHNICAL ANALYSIS PANEL (3-col) ─────────────── */}
       {(rsi != null || allMAs.length > 0) && (
         <div className="rounded-2xl border border-border/50 bg-card p-5 sm:p-6">
@@ -616,31 +798,61 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
           </div>
         </div>
 
-        {/* Performance */}
+        {/* Performance Heatmap */}
         <div className="rounded-2xl border border-border/50 bg-card p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4">Performance</h3>
           {performance ? (
-            <div className="space-y-0">
-              {(Object.entries(performance) as [string, number | null][]).map(([period, pct]) => {
-                if (pct == null) return null;
-                const pos = pct >= 0;
-                return (
-                  <div key={period} className="flex items-center justify-between py-2.5 border-b border-border/10 last:border-0">
-                    <span className="text-sm text-muted-foreground">{period}</span>
-                    <div className="flex items-center gap-2">
-                      <div className={cn("w-16 h-1.5 rounded-full bg-secondary overflow-hidden", !pos && "flex justify-end")}>
-                        <div
-                          className={cn("h-full rounded-full", pos ? "bg-positive" : "bg-negative")}
-                          style={{ width: `${Math.min(Math.abs(pct), 100)}%` }}
-                        />
-                      </div>
-                      <span className={cn("text-sm font-bold tabular-nums w-20 text-right", pos ? "text-positive" : "text-negative")}>
-                        {pos ? "+" : ""}{pct.toFixed(2)}%
-                      </span>
+            <div className="space-y-2">
+              {/* Heatmap grid */}
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.entries(performance) as [string, number | null][]).map(([period, pct]) => {
+                  if (pct == null) return null;
+                  const pos = pct >= 0;
+                  const intensity = Math.min(Math.abs(pct) / 50, 1); // normalize to 50% max
+                  return (
+                    <div
+                      key={period}
+                      className="rounded-lg p-3 text-center transition-colors"
+                      style={{
+                        backgroundColor: pos
+                          ? `rgba(74, 222, 128, ${0.06 + intensity * 0.18})`
+                          : `rgba(248, 113, 113, ${0.06 + intensity * 0.18})`,
+                      }}
+                    >
+                      <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1">{period}</p>
+                      <p className={cn("text-sm font-bold tabular-nums", pos ? "text-positive" : "text-negative")}>
+                        {pos ? "+" : ""}{pct.toFixed(1)}%
+                      </p>
                     </div>
+                  );
+                })}
+              </div>
+              {/* Key Psychological Levels */}
+              {keyLevels.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-border/20">
+                  <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Key Price Levels</p>
+                  <div className="space-y-0">
+                    {keyLevels.map((lvl) => {
+                      const dist = ((quote.price - lvl.price) / lvl.price) * 100;
+                      return (
+                        <div key={lvl.price} className="flex items-center justify-between py-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className={cn("w-1.5 h-1.5 rounded-full",
+                              lvl.type === "resistance" ? "bg-negative/60" : lvl.type === "support" ? "bg-positive/60" : "bg-brand"
+                            )} />
+                            <span className="text-xs tabular-nums font-medium text-foreground">{lvl.label}</span>
+                          </div>
+                          <span className={cn("text-[10px] font-bold tabular-nums",
+                            dist > 0 ? "text-positive" : dist < 0 ? "text-negative" : "text-brand"
+                          )}>
+                            {dist > 0 ? "+" : ""}{dist.toFixed(2)}%
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground/50">Loading...</p>
@@ -680,13 +892,51 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
           )}
 
           <div className="rounded-2xl border border-border/50 bg-card p-5">
-            <h3 className="text-sm font-semibold text-foreground mb-3">Price by Unit</h3>
-            <div className="space-y-0">
+            <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              <svg className="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M12 12h.01M17 12h.01M7 12h.01" /></svg>
+              {shortName} Calculator
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={calcGrams}
+                    onChange={(e) => setCalcGrams(e.target.value)}
+                    className="w-full rounded-lg border border-border/50 bg-secondary/30 px-3 py-2.5 text-sm font-medium tabular-nums text-foreground focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/50"
+                    min="0"
+                    step="0.1"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">grams</span>
+                </div>
+                <span className="text-muted-foreground/30">=</span>
+                <div className="flex-1 rounded-lg bg-brand/5 border border-brand/10 px-3 py-2.5 text-center">
+                  <span className="text-sm font-bold tabular-nums text-foreground">
+                    {calcValue != null ? fmtPrice(calcValue) : "—"}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-1">
+                {[1, 10, 50, 100].map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => setCalcGrams(String(g))}
+                    className={cn(
+                      "text-[10px] font-medium py-1.5 rounded transition-colors",
+                      calcGrams === String(g) ? "bg-brand/10 text-brand" : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                    )}
+                  >
+                    {g}g
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-0 mt-3 pt-3 border-t border-border/20">
               <StatRow label="Per Troy Oz" value={fmtPrice(quote.price)} />
               <StatRow label="Per Gram" value={fmtPrice(perGram)} />
               <StatRow label="Per Kilogram" value={fmtPrice(perKg)} />
-              <StatRow label="Per Pennyweight" value={fmtPrice(quote.price / 20)} />
-              <StatRow label="Per Tola" value={fmtPrice(quote.price * 0.375)} />
+              <StatRow label="Per Tola (11.66g)" value={fmtPrice(quote.price * 0.375)} />
             </div>
           </div>
         </div>

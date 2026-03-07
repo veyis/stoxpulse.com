@@ -49,6 +49,11 @@ export function GET() {
       url(`${baseUrl}/stocks/${tickerToSlug(stock.ticker)}/insider-trading`, now, "weekly", 0.7)
     ),
 
+    // Earnings history pages (programmatic SEO)
+    ...sp500Stocks.map((stock) =>
+      url(`${baseUrl}/stocks/${tickerToSlug(stock.ticker)}/earnings`, now, "weekly", 0.7)
+    ),
+
     // Sector pages
     ...getAllSectors().map((sector) =>
       url(

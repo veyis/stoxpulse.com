@@ -31,7 +31,7 @@ export function KeyStats({ quote }: KeyStatsProps) {
   ];
 
   return (
-    <div className="rounded-lg border border-border/50 bg-card p-4">
+    <div className="key-stats rounded-lg border border-border/50 bg-card p-4">
       <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
         Key Statistics
       </h3>

@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { ArrowRight, TrendingUp, FileText, Zap } from "lucide-react";
 import { motion, Variants } from "framer-motion";
+import { analytics } from "@/lib/analytics";
 
 const stats = [
   { value: "4,000+", label: "Earnings calls analyzed per quarter" },
@@ -101,6 +102,7 @@ export function Hero() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               href="#waitlist"
+              onClick={() => analytics.ctaClicked("hero", "Get Early Access")}
               className="group inline-flex items-center gap-2 rounded-xl bg-brand px-7 py-3.5 text-base font-semibold text-brand-foreground hover:bg-brand/90 glow-brand transition-all duration-300"
             >
               Get Early Access — Free
@@ -110,6 +112,7 @@ export function Hero() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               href="#how-it-works"
+              onClick={() => analytics.ctaClicked("hero", "See How It Works")}
               className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface-1 px-7 py-3.5 text-base font-medium text-foreground hover:bg-surface-2 transition-colors duration-200"
             >
               See How It Works

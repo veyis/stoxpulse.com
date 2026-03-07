@@ -16,7 +16,7 @@ export function StockHeader({ ticker, quote, profile }: StockHeaderProps) {
   const name = profile?.name ?? ticker;
 
   return (
-    <div className="space-y-4">
+    <div className="stock-header space-y-4">
       {/* Company name + badges */}
       <div>
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold font-display tracking-tight">{name}</h1>

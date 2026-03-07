@@ -59,11 +59,29 @@ export default function GlossaryPage() {
     ],
   };
 
+  const definedTermSetSchema = {
+    "@context": "https://schema.org",
+    "@type": "DefinedTermSet",
+    name: "StoxPulse Stock Market Glossary",
+    description: `Comprehensive stock market glossary with ${glossaryTerms.length} financial terms explained in plain English. Covers ${categories.length} categories from fundamental analysis to market mechanics.`,
+    url: "https://stoxpulse.com/glossary",
+    hasDefinedTerm: glossaryTerms.map((term) => ({
+      "@type": "DefinedTerm",
+      name: term.term,
+      description: term.definition,
+      url: `https://stoxpulse.com/glossary/${term.slug}`,
+    })),
+  };
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(definedTermSetSchema) }}
       />
       <Navbar />
       <main className="min-h-screen pt-20 bg-background">

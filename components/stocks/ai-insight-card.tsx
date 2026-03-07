@@ -185,7 +185,7 @@ export function AIInsightCard({ ticker, className, compact = false }: AIInsightC
       initial="hidden"
       animate="show"
       className={cn(
-        "rounded-2xl border border-brand/30 bg-surface-1/40 backdrop-blur-md shadow-xl shadow-brand/5 relative overflow-hidden",
+        "ai-insight-card rounded-2xl border border-brand/30 bg-surface-1/40 backdrop-blur-md shadow-xl shadow-brand/5 relative overflow-hidden",
         compact ? "p-4" : "p-6",
         className
       )}

@@ -38,8 +38,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       .slice(0, 3)
       .map((s) => s.ticker)
       .join(", ")}, and more.`,
+    keywords: [
+      `${sector} stocks`,
+      `${sector} stock analysis`,
+      `${sector} sector outlook`,
+      `best ${sector} stocks`,
+      `${sector} earnings analysis`,
+      `${sector} sector stocks list`,
+      `AI ${sector.toLowerCase()} stock analysis`,
+    ],
     alternates: {
       canonical: `https://stoxpulse.com/stocks/sector/${sectorToSlug(sector)}`,
+    },
+    openGraph: {
+      title: `${sector} Stocks — AI Analysis | StoxPulse`,
+      description: `AI-powered analysis for ${stocks.length} ${sector} companies including ${stocks.slice(0, 3).map((s) => s.ticker).join(", ")}.`,
+      url: `https://stoxpulse.com/stocks/sector/${sectorToSlug(sector)}`,
     },
   };
 }

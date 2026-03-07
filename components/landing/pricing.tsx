@@ -3,6 +3,7 @@
 import { Check, Sparkles } from "lucide-react";
 import { motion, Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { analytics } from "@/lib/analytics";
 
 const plans = [
   {
@@ -193,6 +194,7 @@ export function Pricing() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 href="#waitlist"
+                onClick={() => analytics.pricingViewed(plan.name)}
                 className={cn(
                   "inline-flex items-center justify-center rounded-xl px-6 py-3.5 text-sm font-bold transition-all duration-200 mt-auto",
                   plan.highlighted

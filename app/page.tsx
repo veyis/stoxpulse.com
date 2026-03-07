@@ -12,36 +12,6 @@ import { RelatedContents } from "@/components/landing/related-contents";
 import { CTA } from "@/components/landing/cta";
 import { Footer } from "@/components/landing/footer";
 
-const organizationSchema = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "@id": "https://stoxpulse.com/#organization",
-  name: "StoxPulse",
-  url: "https://stoxpulse.com",
-  logo: "https://stoxpulse.com/logo.png",
-  description:
-    "AI-powered stock intelligence platform — the research analyst serious investors wish they could afford. Analyzes earnings calls, SEC filings, and financial news for your watchlist.",
-  foundingDate: "2026",
-  sameAs: [
-    "https://twitter.com/stoxpulse",
-    "https://linkedin.com/company/stoxpulse",
-  ],
-};
-
-const websiteSchema = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "@id": "https://stoxpulse.com/#website",
-  name: "StoxPulse",
-  url: "https://stoxpulse.com",
-  publisher: { "@id": "https://stoxpulse.com/#organization" },
-  potentialAction: {
-    "@type": "SearchAction",
-    target: "https://stoxpulse.com/stocks/{search_term_string}",
-    "query-input": "required name=search_term_string",
-  },
-};
-
 const softwareAppSchema = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
@@ -73,18 +43,6 @@ const softwareAppSchema = {
 export default function Home() {
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(organizationSchema),
-        }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(websiteSchema),
-        }}
-      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

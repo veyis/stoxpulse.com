@@ -75,6 +75,37 @@ export default async function ComparisonPage({ params }: PageProps) {
     })),
   };
 
+  const comparisonSchema = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: `StoxPulse vs ${competitor.name} — Feature Comparison`,
+    description: competitor.tldr,
+    numberOfItems: 2,
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        item: {
+          "@type": "SoftwareApplication",
+          name: "StoxPulse",
+          applicationCategory: "FinanceApplication",
+          url: "https://stoxpulse.com",
+          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+        },
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        item: {
+          "@type": "SoftwareApplication",
+          name: competitor.name,
+          applicationCategory: "FinanceApplication",
+          description: competitor.description,
+        },
+      },
+    ],
+  };
+
   return (
     <>
       <script
@@ -84,6 +115,10 @@ export default async function ComparisonPage({ params }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(comparisonSchema) }}
       />
       <Navbar />
       <main className="min-h-screen pt-20 bg-background">

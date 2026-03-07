@@ -7,6 +7,7 @@ import {
 import { blogPosts } from "@/data/blog/posts";
 import { glossaryTerms } from "@/data/glossary/terms";
 import { competitors } from "@/data/competitors";
+import { commodities } from "@/data/commodities";
 
 const baseUrl = "https://stoxpulse.com";
 
@@ -20,7 +21,7 @@ function url(
 }
 
 export function GET() {
-  const now = "2026-03-06";
+  const now = new Date().toISOString().split("T")[0];
 
   const urls: string[] = [
     // Static pages
@@ -42,6 +43,11 @@ export function GET() {
     // Stock pages
     ...sp500Stocks.map((stock) =>
       url(`${baseUrl}/stocks/${tickerToSlug(stock.ticker)}`, now, "daily", 0.8)
+    ),
+
+    // Commodity pages
+    ...commodities.map((c) =>
+      url(`${baseUrl}/stocks/${c.slug}`, now, "daily", 0.8)
     ),
 
     // Insider trading pages (programmatic SEO)

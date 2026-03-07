@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowRight, CheckCircle, Loader2 } from "lucide-react";
 import { motion, Variants } from "framer-motion";
+import { analytics } from "@/lib/analytics";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -50,8 +51,10 @@ export function CTA() {
 
       setStatus("success");
       setEmail("");
+      analytics.waitlistSubmitted("cta_section");
     } catch {
       setStatus("error");
+      analytics.waitlistError("cta_section");
       setTimeout(() => setStatus("idle"), 3000);
     }
   };

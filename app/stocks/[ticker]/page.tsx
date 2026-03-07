@@ -212,6 +212,10 @@ export default async function StockPage({ params }: Props) {
     url: `https://stoxpulse.com/stocks/${tickerToSlug(stock.ticker)}`,
     creator: { "@type": "Organization", name: "StoxPulse", url: "https://stoxpulse.com" },
     keywords: [`${stock.ticker} earnings`, `${stock.ticker} SEC filings`, `${stock.ticker} sentiment`, `${stock.name} analysis`],
+    speakable: {
+      "@type": "SpeakableSpecification",
+      cssSelector: [".ai-insight-card", ".stock-header", ".key-stats"],
+    },
   };
 
   const faqSchema = {
@@ -256,6 +260,9 @@ export default async function StockPage({ params }: Props) {
               quote={data.quote}
               profile={data.profile}
             />
+            <p className="mt-2 text-xs text-muted-foreground/60">
+              Last updated: {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+            </p>
           </header>
 
           {/* AI Insights Card */}

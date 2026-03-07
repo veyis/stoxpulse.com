@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Activity, Menu, X } from "lucide-react";
 import { motion, useScroll, useMotionValueEvent, Variants } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { analytics } from "@/lib/analytics";
 
 const navLinks = [
   { label: "Stocks", href: "/stocks" },
@@ -88,6 +89,7 @@ export function Navbar() {
           <ThemeToggle />
           <Link
             href="/#waitlist"
+            onClick={() => analytics.ctaClicked("navbar", "Get Early Access")}
             className="inline-flex items-center justify-center rounded-lg bg-brand px-5 py-2.5 text-sm font-bold text-brand-foreground hover:bg-brand/90 transition-all duration-300 hover:scale-105 glow-brand shadow-md"
           >
             Get Early Access
@@ -126,7 +128,7 @@ export function Navbar() {
           <Link
             href="/#waitlist"
             className="inline-flex items-center justify-center rounded-lg bg-brand px-5 py-3 mt-2 text-sm font-bold text-brand-foreground"
-            onClick={() => setMobileOpen(false)}
+            onClick={() => { analytics.ctaClicked("navbar_mobile", "Get Early Access"); setMobileOpen(false); }}
           >
             Get Early Access
           </Link>

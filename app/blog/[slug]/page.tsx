@@ -82,9 +82,13 @@ export default async function BlogPostPage({ params }: PageProps) {
       "@type": "Organization",
       name: "StoxPulse",
       url: "https://stoxpulse.com",
-      logo: "https://stoxpulse.com/logo.png",
+      logo: "https://stoxpulse.com/images/related/logo1.png",
     },
     mainEntityOfPage: `https://stoxpulse.com/blog/${slug}`,
+    speakable: {
+      "@type": "SpeakableSpecification",
+      cssSelector: ["article header h1", "article header p", ".prose-custom"],
+    },
   };
 
   const faqSchema = {

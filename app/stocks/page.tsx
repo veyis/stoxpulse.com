@@ -32,8 +32,21 @@ export const metadata: Metadata = {
 export default function StocksPage() {
   const sectors = getAllSectors();
 
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://stoxpulse.com" },
+      { "@type": "ListItem", position: 2, name: "Stocks", item: "https://stoxpulse.com/stocks" },
+    ],
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
       <Navbar />
       <main className="min-h-screen bg-background pt-24 pb-16">
         <div className="mx-auto max-w-7xl px-6">

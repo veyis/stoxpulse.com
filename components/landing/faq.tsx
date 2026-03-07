@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, Variants } from "framer-motion";
+import { analytics } from "@/lib/analytics";
 
 const faqs = [
   {
@@ -120,7 +121,10 @@ export function FAQ() {
                 )}
               >
                 <button
-                  onClick={() => setOpenIndex(isOpen ? null : index)}
+                  onClick={() => {
+                    if (!isOpen) analytics.faqOpened(faq.question);
+                    setOpenIndex(isOpen ? null : index);
+                  }}
                   className="flex w-full items-center justify-between px-6 py-5 text-left focus:outline-none"
                   aria-expanded={isOpen}
                 >

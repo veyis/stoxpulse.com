@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -322,6 +322,74 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
     return { emaRibbonBullish, emaRibbonBearish, crossType, strength, trendLabel, aboveCount, totalMAs: maValues.length };
   }, [technicals, quote]);
 
+  // ── MACD (12, 26, 9) computed from historical closes ──
+  const macdData = useMemo(() => {
+    if (historicalPrices.length < 35) return null;
+    const sorted = [...historicalPrices].sort((a, b) => a.date.localeCompare(b.date));
+    const closes = sorted.map(p => p.close);
+
+    function ema(data: number[], period: number): number[] {
+      const k = 2 / (period + 1);
+      const result: number[] = [data[0]];
+      for (let i = 1; i < data.length; i++) {
+        result.push(data[i] * k + result[i - 1] * (1 - k));
+      }
+      return result;
+    }
+
+    const ema12 = ema(closes, 12);
+    const ema26 = ema(closes, 26);
+    const macdLine = ema12.map((v, i) => v - ema26[i]);
+    const signalLine = ema(macdLine.slice(26), 9);
+    const macdRecent = macdLine[macdLine.length - 1];
+    const signalRecent = signalLine[signalLine.length - 1];
+    const histogram = macdRecent - signalRecent;
+    const prevHistogram = macdLine[macdLine.length - 2] - signalLine[signalLine.length - 2];
+
+    const crossover = (prevHistogram <= 0 && histogram > 0) ? "bullish" as const
+      : (prevHistogram >= 0 && histogram < 0) ? "bearish" as const : null;
+
+    return { macd: macdRecent, signal: signalRecent, histogram, crossover };
+  }, [historicalPrices]);
+
+  // ── Stochastic Oscillator (14, 3, 3) ──
+  const stochastic = useMemo(() => {
+    if (historicalPrices.length < 17) return null;
+    const sorted = [...historicalPrices].sort((a, b) => b.date.localeCompare(a.date));
+    const kValues: number[] = [];
+    for (let i = 0; i < Math.min(5, sorted.length - 13); i++) {
+      const window = sorted.slice(i, i + 14);
+      const high14 = Math.max(...window.map(p => p.high ?? p.close));
+      const low14 = Math.min(...window.map(p => p.low ?? p.close));
+      const range = high14 - low14;
+      if (range === 0) continue;
+      kValues.push(((window[0].close - low14) / range) * 100);
+    }
+    if (kValues.length < 3) return null;
+    const k = kValues.slice(0, 3).reduce((a, b) => a + b, 0) / 3;
+    const d = kValues.reduce((a, b) => a + b, 0) / kValues.length;
+    const label = k >= 80 ? "Overbought" as const : k <= 20 ? "Oversold" as const : "Neutral" as const;
+    return { k, d, label };
+  }, [historicalPrices]);
+
+  // ── ATR (14-day Average True Range) ──
+  const atr = useMemo(() => {
+    if (historicalPrices.length < 15) return null;
+    const sorted = [...historicalPrices].sort((a, b) => b.date.localeCompare(a.date));
+    const trValues: number[] = [];
+    for (let i = 0; i < 14 && i + 1 < sorted.length; i++) {
+      const high = sorted[i].high ?? sorted[i].close;
+      const low = sorted[i].low ?? sorted[i].close;
+      const prevClose = sorted[i + 1].close;
+      const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+      trValues.push(tr);
+    }
+    if (trValues.length < 14) return null;
+    const atrValue = trValues.reduce((a, b) => a + b, 0) / trValues.length;
+    const atrPercent = quote ? (atrValue / quote.price) * 100 : 0;
+    return { value: atrValue, percent: atrPercent };
+  }, [historicalPrices, quote]);
+
   // ── AI Technical Summary (auto-generated paragraph) ──
   const aiSummary = useMemo(() => {
     if (!quote || !technicals) return null;
@@ -377,6 +445,20 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
       else if (volatility < 12) parts.push(`Volatility is unusually low at ${volatility.toFixed(0)}% \u2014 a breakout move may be building.`);
     }
 
+    // MACD
+    if (macdData?.crossover === "bullish") {
+      parts.push("MACD just crossed bullish — a momentum buy signal.");
+    } else if (macdData?.crossover === "bearish") {
+      parts.push("MACD just crossed bearish — momentum is turning negative.");
+    }
+
+    // Stochastic
+    if (stochastic && stochastic.k <= 20 && stochastic.k > stochastic.d) {
+      parts.push("Stochastic turning up from oversold — potential reversal signal.");
+    } else if (stochastic && stochastic.k >= 80 && stochastic.k < stochastic.d) {
+      parts.push("Stochastic rolling over from overbought — distribution possible.");
+    }
+
     // Upcoming catalyst
     if (context?.economicEvents?.[0]) {
       const evt = context.economicEvents[0];
@@ -388,7 +470,70 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
     }
 
     return parts.join(" ");
-  }, [quote, technicals, trendAnalysis, bollingerBands, volatility, context, shortName]);
+  }, [quote, technicals, trendAnalysis, bollingerBands, volatility, context, shortName, macdData, stochastic]);
+
+  // ── AI Action Takeaway (separate from summary for visual emphasis) ──
+  const aiAction = useMemo(() => {
+    if (!trendAnalysis || !technicals) return null;
+    const score = trendAnalysis.strength; // 0 to 1
+    const _rsi = technicals.rsi14;
+    // Combine trend + RSI for conviction
+    let action: "Strong Buy" | "Buy" | "Hold" | "Sell" | "Strong Sell";
+    let confidence: number;
+    if (score >= 0.8 && _rsi != null && _rsi < 70) {
+      action = "Strong Buy"; confidence = 85;
+    } else if (score >= 0.6 && _rsi != null && _rsi < 75) {
+      action = "Buy"; confidence = 70;
+    } else if (score <= 0.2 && _rsi != null && _rsi > 30) {
+      action = "Strong Sell"; confidence = 85;
+    } else if (score <= 0.4 && _rsi != null && _rsi > 25) {
+      action = "Sell"; confidence = 70;
+    } else {
+      action = "Hold"; confidence = 55;
+    }
+    // Adjust if RSI conflicts with trend
+    if (_rsi != null && _rsi > 80 && action.includes("Buy")) { action = "Hold"; confidence = 50; }
+    if (_rsi != null && _rsi < 20 && action.includes("Sell")) { action = "Hold"; confidence = 50; }
+    // MACD crossover boost
+    if (macdData?.crossover === "bullish" && action.includes("Buy")) confidence = Math.min(95, confidence + 10);
+    if (macdData?.crossover === "bearish" && action.includes("Sell")) confidence = Math.min(95, confidence + 10);
+    // Stochastic confirmation
+    if (stochastic && stochastic.k <= 20 && action.includes("Buy")) confidence = Math.min(95, confidence + 5);
+    if (stochastic && stochastic.k >= 80 && action.includes("Sell")) confidence = Math.min(95, confidence + 5);
+    return { action, confidence };
+  }, [trendAnalysis, technicals, macdData, stochastic]);
+
+  // ── Seasonal Analysis (computed from real historical data) ──
+  const seasonalData = useMemo(() => {
+    if (historicalPrices.length < 252) return null; // need at least 1 year
+    const sorted = [...historicalPrices].sort((a, b) => a.date.localeCompare(b.date));
+
+    // Group by month and compute average returns
+    const monthReturns: Record<number, number[]> = {};
+    for (let i = 1; i < sorted.length; i++) {
+      const month = new Date(sorted[i].date + "T12:00:00").getMonth(); // 0-11
+      const prevClose = sorted[i - 1].close;
+      if (prevClose > 0) {
+        const dailyReturn = (sorted[i].close - prevClose) / prevClose;
+        if (!monthReturns[month]) monthReturns[month] = [];
+        monthReturns[month].push(dailyReturn);
+      }
+    }
+
+    // Average daily return per month, annualized to monthly
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return months.map((name, i) => {
+      const returns = monthReturns[i];
+      if (!returns || returns.length === 0) return { name, avgReturn: 0, positive: 0 };
+      const avgDaily = returns.reduce((a, b) => a + b, 0) / returns.length;
+      const avgMonthly = avgDaily * 21 * 100; // ~21 trading days per month
+      const positiveDays = returns.filter(r => r > 0).length;
+      return { name, avgReturn: avgMonthly, positive: (positiveDays / returns.length) * 100 };
+    });
+  }, [historicalPrices]);
+
+  // Current month highlight for seasonal
+  const currentMonth = new Date().getMonth();
 
   // ── Key Price Levels (psychological + pivot) ──
   const keyLevels = useMemo(() => {
@@ -412,6 +557,42 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
     return levels;
   }, [quote]);
 
+  // ── Fibonacci Retracement Levels ──
+  const fibLevels = useMemo(() => {
+    if (!quote || !quote.high52w || !quote.low52w || quote.high52w <= quote.low52w) return null;
+    const high = quote.high52w;
+    const low = quote.low52w;
+    const diff = high - low;
+    const ratios = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+    const labels = ["0%", "23.6%", "38.2%", "50%", "61.8%", "78.6%", "100%"];
+    return ratios.map((r, i) => ({
+      ratio: labels[i],
+      price: high - diff * r,
+      type: (high - diff * r) < quote.price ? "support" as const : "resistance" as const,
+    }));
+  }, [quote]);
+
+  // ── Correlation insights (gold vs SPY/VIX) ──
+  const correlationInsight = useMemo(() => {
+    if (!context?.vix || !context?.spy || !quote) return null;
+    const insights: string[] = [];
+    if (context.vix.price >= 30) {
+      insights.push(`VIX at ${context.vix.price.toFixed(1)} signals extreme fear — historically bullish for ${shortName} as investors seek safe havens.`);
+    } else if (context.vix.price >= 20 && context.vix.changePercent > 5) {
+      insights.push(`VIX spiking ${context.vix.changePercent.toFixed(1)}% — rising fear could drive ${shortName} demand.`);
+    } else if (context.vix.price < 15) {
+      insights.push(`VIX at ${context.vix.price.toFixed(1)} shows extreme complacency — less urgency for safe-haven ${shortName}.`);
+    }
+    if (context.spy.changePercent < -1 && quote.changePercent > 0) {
+      insights.push(`${shortName} up while S&P 500 down — classic risk-off rotation into precious metals.`);
+    } else if (context.spy.changePercent > 1 && quote.changePercent > 1) {
+      insights.push(`Both equities and ${shortName} rising — may signal inflation concerns or liquidity-driven rally.`);
+    } else if (context.spy.changePercent > 1 && quote.changePercent < 0) {
+      insights.push(`Risk-on mood hurting ${shortName} as capital flows toward equities.`);
+    }
+    return insights.length > 0 ? insights : null;
+  }, [context, quote, shortName]);
+
   // ── Calculator state ──
   const [calcGrams, setCalcGrams] = useState<string>("1");
   const calcValue = useMemo(() => {
@@ -419,6 +600,149 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
     if (isNaN(g) || g < 0 || !quote) return null;
     return g * (quote.price / TROY_OZ_TO_GRAM);
   }, [calcGrams, quote]);
+
+  // ── Position size calculator ──
+  const [riskCapital, setRiskCapital] = useState<string>("10000");
+  const [riskPercent, setRiskPercent] = useState<string>("2");
+  const positionSize = useMemo(() => {
+    const cap = parseFloat(riskCapital);
+    const pct = parseFloat(riskPercent);
+    if (isNaN(cap) || isNaN(pct) || cap <= 0 || pct <= 0 || !quote || !atr) return null;
+    const riskAmount = cap * (pct / 100);
+    const stopLoss = atr.value * 1.5; // 1.5x ATR stop
+    const units = riskAmount / stopLoss; // troy oz
+    const positionValue = units * quote.price;
+    return { riskAmount, stopLoss, units, positionValue, stopPrice: quote.price - stopLoss };
+  }, [riskCapital, riskPercent, quote, atr]);
+
+  // ── Drawdown Analysis ──
+  const drawdownData = useMemo(() => {
+    if (historicalPrices.length < 22 || !quote) return null;
+    const sorted = [...historicalPrices].sort((a, b) => a.date.localeCompare(b.date));
+
+    let peak = sorted[0].close;
+    let maxDD = 0;
+    let maxDDDate = sorted[0].date;
+    let maxDDPeakDate = sorted[0].date;
+    let currentPeak = sorted[0].close;
+    let currentPeakDate = sorted[0].date;
+
+    for (const p of sorted) {
+      if (p.close > peak) {
+        peak = p.close;
+        currentPeakDate = p.date;
+      }
+      const dd = ((p.close - peak) / peak) * 100;
+      if (dd < maxDD) {
+        maxDD = dd;
+        maxDDDate = p.date;
+        maxDDPeakDate = currentPeakDate;
+      }
+      if (p.close > currentPeak) {
+        currentPeak = p.close;
+      }
+    }
+
+    // Current drawdown from ATH in our dataset
+    const ath = Math.max(...sorted.map(p => p.close), quote.price);
+    const currentDD = ((quote.price - ath) / ath) * 100;
+
+    // Recovery: days since last ATH
+    const athDate = sorted.reduce((best, p) => p.close >= best.close ? p : best, sorted[0]).date;
+    const daysSinceATH = Math.floor((Date.now() - new Date(athDate + "T12:00:00").getTime()) / 86400000);
+
+    // Average recovery time: count drawdown-to-recovery cycles
+    let inDD = false;
+    let ddStart = 0;
+    const recoveryDays: number[] = [];
+    let runPeak = sorted[0].close;
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].close > runPeak) runPeak = sorted[i].close;
+      const dd = ((sorted[i].close - runPeak) / runPeak) * 100;
+      if (dd < -5 && !inDD) { inDD = true; ddStart = i; }
+      if (inDD && sorted[i].close >= runPeak) {
+        recoveryDays.push(i - ddStart);
+        inDD = false;
+      }
+    }
+    const avgRecovery = recoveryDays.length > 0
+      ? Math.round(recoveryDays.reduce((a, b) => a + b, 0) / recoveryDays.length)
+      : null;
+
+    return { maxDD, maxDDDate, maxDDPeakDate, currentDD, ath, daysSinceATH, avgRecovery };
+  }, [historicalPrices, quote]);
+
+  // ── Investment Return Calculator ──
+  const investmentReturns = useMemo(() => {
+    if (historicalPrices.length < 252 || !quote) return null;
+    const sorted = [...historicalPrices].sort((a, b) => b.date.localeCompare(a.date));
+    const cur = quote.price;
+
+    const periods = [
+      { label: "1 Year", days: 252 },
+      { label: "2 Years", days: 504 },
+      { label: "3 Years", days: 756 },
+      { label: "5 Years", days: 1260 },
+    ];
+
+    return periods.map(({ label, days }) => {
+      if (sorted.length < days) return null;
+      const pastPrice = sorted[Math.min(days - 1, sorted.length - 1)].close;
+      if (pastPrice <= 0) return null;
+      const returnPct = ((cur - pastPrice) / pastPrice) * 100;
+      const $1000value = 1000 * (cur / pastPrice);
+      const annualized = (Math.pow(cur / pastPrice, 252 / days) - 1) * 100;
+      return { label, pastPrice, returnPct, $1000value, annualized };
+    }).filter(Boolean) as { label: string; pastPrice: number; returnPct: number; $1000value: number; annualized: number }[];
+  }, [historicalPrices, quote]);
+
+  // ── What-If Trade Planner ──
+  const [tradeEntry, setTradeEntry] = useState<string>("");
+  const [tradeTarget, setTradeTarget] = useState<string>("");
+  const [tradeStop, setTradeStop] = useState<string>("");
+  const [tradeSize, setTradeSize] = useState<string>("1");
+  const tradeAnalysis = useMemo(() => {
+    const entry = parseFloat(tradeEntry) || (quote?.price ?? 0);
+    const target = parseFloat(tradeTarget);
+    const stop = parseFloat(tradeStop);
+    const size = parseFloat(tradeSize) || 1;
+    if (!entry || !target || !stop || entry <= 0) return null;
+
+    const reward = (target - entry) * size;
+    const risk = (entry - stop) * size;
+    const rrRatio = risk !== 0 ? Math.abs(reward / risk) : 0;
+    const rewardPct = ((target - entry) / entry) * 100;
+    const riskPct = ((entry - stop) / entry) * 100;
+    const isLong = target > entry;
+
+    return { entry, target, stop, size, reward, risk, rrRatio, rewardPct, riskPct, isLong };
+  }, [tradeEntry, tradeTarget, tradeStop, tradeSize, quote]);
+
+  // ── Sticky nav active section tracking ──
+  const [activeSection, setActiveSection] = useState("overview");
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const setSectionRef = useCallback((id: string) => (el: HTMLDivElement | null) => {
+    sectionRefs.current[id] = el;
+  }, []);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        }
+      },
+      { rootMargin: "-80px 0px -60% 0px", threshold: 0 }
+    );
+
+    Object.values(sectionRefs.current).forEach((el) => {
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, [quote]); // re-observe when data loads
 
   // ── Loading skeleton ──
   if (!quote) {
@@ -503,10 +827,39 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
       quote.price > bollingerBands.middle ? "Upper Half" : "Lower Half"
     : null;
 
+  const navItems = [
+    { id: "overview", label: "Overview" },
+    { id: "technicals", label: "Technicals" },
+    { id: "chart", label: "Chart" },
+    { id: "tools", label: "Tools" },
+    { id: "market", label: "Market" },
+    { id: "news", label: "News" },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* ─── STICKY SECTION NAV ─────────────────────────── */}
+      <div className="sticky top-[64px] z-30 -mx-1 px-1 py-1">
+        <nav className="flex items-center gap-1 rounded-xl border border-border/40 bg-card/80 backdrop-blur-lg px-2 py-1.5 shadow-sm overflow-x-auto scrollbar-hide">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => sectionRefs.current[item.id]?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className={cn(
+                "shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                activeSection === item.id
+                  ? "bg-brand/10 text-brand shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
       {/* ─── HERO PRICE CARD ──────────────────────────────── */}
-      <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
+      <div id="overview" ref={setSectionRef("overview")} className="rounded-2xl border border-border/50 bg-card overflow-hidden scroll-mt-28">
         <div className="p-5 sm:p-7">
           <div className="flex flex-col lg:flex-row lg:items-start gap-6">
             {/* Left: Price */}
@@ -589,50 +942,124 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
 
       {/* ─── AI TECHNICAL SUMMARY ────────────────────────── */}
       {aiSummary && (
-        <div className="rounded-2xl border border-brand/20 bg-gradient-to-r from-brand/5 via-card to-card p-5 sm:p-6">
-          <div className="flex items-start gap-3">
-            <div className="shrink-0 flex items-center justify-center size-8 rounded-lg bg-brand/10">
-              <svg className="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a2 2 0 0 1-2 2h-1v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2H6a2 2 0 0 1-2-2v-1a3 3 0 0 1 3-3h3V9.4C8.8 8.8 8 7.5 8 6a4 4 0 0 1 4-4z" /></svg>
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-1.5">
-                <h3 className="text-sm font-semibold text-foreground">AI Market Summary</h3>
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-brand/10 text-brand uppercase tracking-wider">Auto-generated</span>
+        <div className="rounded-2xl border border-brand/20 bg-gradient-to-r from-brand/5 via-card to-card overflow-hidden">
+          <div className="p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 flex items-center justify-center size-8 rounded-lg bg-brand/10">
+                <svg className="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.4V11h3a3 3 0 0 1 3 3v1a2 2 0 0 1-2 2h-1v2a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3v-2H6a2 2 0 0 1-2-2v-1a3 3 0 0 1 3-3h3V9.4C8.8 8.8 8 7.5 8 6a4 4 0 0 1 4-4z" /></svg>
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">{aiSummary}</p>
-            </div>
-          </div>
-          {/* Trend Strength Bar */}
-          {trendAnalysis && (
-            <div className="mt-4 pt-4 border-t border-border/20">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Trend Strength</span>
-                <div className="flex items-center gap-2">
-                  <span className={cn("text-xs font-bold",
-                    trendAnalysis.strength >= 0.6 ? "text-positive" : trendAnalysis.strength <= 0.4 ? "text-negative" : "text-muted-foreground"
-                  )}>
-                    {trendAnalysis.trendLabel}
-                  </span>
-                  {trendAnalysis.crossType && (
-                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded",
-                      trendAnalysis.crossType === "golden" ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative"
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                  <h3 className="text-sm font-semibold text-foreground">AI Market Summary</h3>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-brand/10 text-brand uppercase tracking-wider">Auto-generated</span>
+                  {aiAction && (
+                    <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full",
+                      aiAction.action.includes("Buy") ? "bg-positive/15 text-positive" :
+                      aiAction.action.includes("Sell") ? "bg-negative/15 text-negative" :
+                      "bg-muted-foreground/10 text-muted-foreground"
                     )}>
-                      {trendAnalysis.crossType === "golden" ? "Golden Cross" : "Death Cross"}
+                      {aiAction.action} &middot; {aiAction.confidence}% confidence
                     </span>
                   )}
                 </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">{aiSummary}</p>
               </div>
-              <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                <div
-                  className={cn("h-full rounded-full transition-all duration-500",
-                    trendAnalysis.strength >= 0.6 ? "bg-positive" : trendAnalysis.strength <= 0.4 ? "bg-negative" : "bg-muted-foreground/40"
-                  )}
-                  style={{ width: `${trendAnalysis.strength * 100}%` }}
-                />
+            </div>
+
+            {/* Trend + EMA Ribbon row */}
+            {trendAnalysis && (
+              <div className="mt-4 pt-4 border-t border-border/20 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Trend Strength */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Trend Strength</span>
+                    <div className="flex items-center gap-2">
+                      <span className={cn("text-xs font-bold",
+                        trendAnalysis.strength >= 0.6 ? "text-positive" : trendAnalysis.strength <= 0.4 ? "text-negative" : "text-muted-foreground"
+                      )}>
+                        {trendAnalysis.trendLabel}
+                      </span>
+                      {trendAnalysis.crossType && (
+                        <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded",
+                          trendAnalysis.crossType === "golden" ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative"
+                        )}>
+                          {trendAnalysis.crossType === "golden" ? "Golden Cross" : "Death Cross"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                    <div
+                      className={cn("h-full rounded-full transition-all duration-500",
+                        trendAnalysis.strength >= 0.6 ? "bg-positive" : trendAnalysis.strength <= 0.4 ? "bg-negative" : "bg-muted-foreground/40"
+                      )}
+                      style={{ width: `${trendAnalysis.strength * 100}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[9px] text-negative/60">Bearish</span>
+                    <span className="text-[9px] text-positive/60">Bullish</span>
+                  </div>
+                </div>
+
+                {/* EMA Ribbon Visual */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">MA Alignment</span>
+                    <span className={cn("text-[10px] font-bold",
+                      trendAnalysis.emaRibbonBullish ? "text-positive" : trendAnalysis.emaRibbonBearish ? "text-negative" : "text-muted-foreground"
+                    )}>
+                      {trendAnalysis.emaRibbonBullish ? "Bullish Ribbon" : trendAnalysis.emaRibbonBearish ? "Bearish Ribbon" : "Mixed"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {allMAs.map((ma) => (
+                      <div key={ma.label} className="flex-1 group relative">
+                        <div className={cn("h-5 rounded-sm transition-colors",
+                          ma.above ? "bg-positive/25" : "bg-negative/25"
+                        )} />
+                        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="text-[8px] text-muted-foreground">{ma.label}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between mt-5">
+                    <span className="text-[9px] text-muted-foreground/40">Short-term</span>
+                    <span className="text-[9px] text-muted-foreground/40">Long-term</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between mt-1">
-                <span className="text-[9px] text-negative/60">Bearish</span>
-                <span className="text-[9px] text-positive/60">Bullish</span>
+            )}
+          </div>
+
+          {/* Multi-timeframe signal strip */}
+          {rsi != null && rsi4h != null && (
+            <div className="bg-secondary/30 border-t border-border/20 px-5 sm:px-6 py-3 flex items-center gap-6 flex-wrap">
+              <span className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider">Signals</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground">RSI Daily</span>
+                <span className={cn("text-[10px] font-bold tabular-nums",
+                  rsi >= 70 ? "text-negative" : rsi <= 30 ? "text-positive" : "text-foreground"
+                )}>{rsi.toFixed(1)}</span>
+                <span className={cn("text-[9px] font-bold px-1.5 py-px rounded",
+                  rsi >= 70 ? "bg-negative/10 text-negative" : rsi <= 30 ? "bg-positive/10 text-positive" : "bg-muted-foreground/10 text-muted-foreground"
+                )}>{rsiLabel}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground">RSI 4H</span>
+                <span className={cn("text-[10px] font-bold tabular-nums",
+                  rsi4h >= 70 ? "text-negative" : rsi4h <= 30 ? "text-positive" : "text-foreground"
+                )}>{rsi4h.toFixed(1)}</span>
+                <span className={cn("text-[9px] font-bold px-1.5 py-px rounded",
+                  rsi4h >= 70 ? "bg-negative/10 text-negative" : rsi4h <= 30 ? "bg-positive/10 text-positive" : "bg-muted-foreground/10 text-muted-foreground"
+                )}>{rsi4hLabel}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground">MAs</span>
+                <span className="text-[10px] font-bold text-positive">{maBuyCount} Buy</span>
+                <span className="text-muted-foreground/30">|</span>
+                <span className="text-[10px] font-bold text-negative">{maSellCount} Sell</span>
               </div>
             </div>
           )}
@@ -641,7 +1068,7 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
 
       {/* ─── TECHNICAL ANALYSIS PANEL (3-col) ─────────────── */}
       {(rsi != null || allMAs.length > 0) && (
-        <div className="rounded-2xl border border-border/50 bg-card p-5 sm:p-6">
+        <div id="technicals" ref={setSectionRef("technicals")} className="rounded-2xl border border-border/50 bg-card p-5 sm:p-6 scroll-mt-28">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <svg className="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18" /><path strokeLinecap="round" strokeLinejoin="round" d="M7 16l4-8 4 4 5-9" /></svg>
@@ -766,6 +1193,150 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
         </div>
       )}
 
+      {/* ─── MACD + STOCHASTIC + ATR (2nd oscillator row) ─── */}
+      {(macdData || stochastic || atr) && (
+        <div className="rounded-2xl border border-border/50 bg-card p-5 sm:p-6">
+          <h3 className="text-sm font-semibold text-foreground mb-5 flex items-center gap-2">
+            <svg className="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
+            Momentum Indicators
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+            {/* MACD */}
+            {macdData && (
+              <div>
+                <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-3">MACD (12, 26, 9)</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">MACD Line</span>
+                    <span className={cn("font-bold tabular-nums", macdData.macd >= 0 ? "text-positive" : "text-negative")}>
+                      {macdData.macd.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Signal Line</span>
+                    <span className="font-medium tabular-nums text-foreground/80">{macdData.signal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Histogram</span>
+                    <span className={cn("font-bold tabular-nums", macdData.histogram >= 0 ? "text-positive" : "text-negative")}>
+                      {macdData.histogram >= 0 ? "+" : ""}{macdData.histogram.toFixed(2)}
+                    </span>
+                  </div>
+                  {/* Visual histogram bar */}
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden flex justify-center">
+                      <div className={cn("h-full rounded-full transition-all", macdData.histogram >= 0 ? "bg-positive" : "bg-negative")}
+                        style={{ width: `${Math.min(Math.abs(macdData.histogram) / (Math.abs(macdData.macd) || 1) * 50, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                  {macdData.crossover && (
+                    <div className={cn("mt-2 text-[10px] font-bold px-2 py-1 rounded text-center",
+                      macdData.crossover === "bullish" ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative"
+                    )}>
+                      {macdData.crossover === "bullish" ? "Bullish Crossover" : "Bearish Crossover"}
+                    </div>
+                  )}
+                  {!macdData.crossover && (
+                    <div className={cn("mt-2 text-[10px] font-bold px-2 py-1 rounded text-center",
+                      macdData.histogram >= 0 ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative"
+                    )}>
+                      {macdData.histogram >= 0 ? "Bullish Momentum" : "Bearish Momentum"}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Stochastic Oscillator */}
+            {stochastic && (
+              <div>
+                <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-3">Stochastic (14, 3, 3)</p>
+                <StochasticGauge k={stochastic.k} d={stochastic.d} />
+                <div className="space-y-2 mt-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">%K</span>
+                    <span className={cn("font-bold tabular-nums",
+                      stochastic.k >= 80 ? "text-negative" : stochastic.k <= 20 ? "text-positive" : "text-foreground"
+                    )}>{stochastic.k.toFixed(1)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">%D</span>
+                    <span className="font-medium tabular-nums text-foreground/80">{stochastic.d.toFixed(1)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Signal</span>
+                    <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded",
+                      stochastic.label === "Overbought" ? "bg-negative/10 text-negative" :
+                      stochastic.label === "Oversold" ? "bg-positive/10 text-positive" :
+                      "bg-muted-foreground/10 text-muted-foreground"
+                    )}>{stochastic.label}</span>
+                  </div>
+                  {stochastic.k > stochastic.d && stochastic.k < 80 && (
+                    <p className="text-[10px] text-positive/70 mt-1">%K above %D — bullish momentum</p>
+                  )}
+                  {stochastic.k < stochastic.d && stochastic.k > 20 && (
+                    <p className="text-[10px] text-negative/70 mt-1">%K below %D — bearish momentum</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ATR + Risk Metrics */}
+            {atr && (
+              <div>
+                <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-3">Risk Metrics</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">ATR (14)</span>
+                    <span className="font-bold tabular-nums text-foreground">{fmtPrice(atr.value)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">ATR %</span>
+                    <span className={cn("font-bold tabular-nums",
+                      atr.percent > 2 ? "text-warning" : "text-foreground/70"
+                    )}>{atr.percent.toFixed(2)}%</span>
+                  </div>
+                  {volatility != null && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Volatility (Ann.)</span>
+                      <span className={cn("font-bold tabular-nums",
+                        volatility > 25 ? "text-warning" : "text-foreground/70"
+                      )}>{volatility.toFixed(1)}%</span>
+                    </div>
+                  )}
+                  <div className="mt-3 pt-3 border-t border-border/10">
+                    <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Daily Range Estimate</p>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-negative tabular-nums font-medium">{fmtPrice(quote.price - atr.value)}</span>
+                      <span className="text-[9px] text-muted-foreground/40">ATR Range</span>
+                      <span className="text-positive tabular-nums font-medium">{fmtPrice(quote.price + atr.value)}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-gradient-to-r from-negative/20 via-secondary to-positive/20 mt-1.5 relative">
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-foreground border border-background" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── FIBONACCI RETRACEMENT ─────────────────────────── */}
+      {fibLevels && (
+        <div className="rounded-2xl border border-border/50 bg-card p-5 sm:p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <svg className="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M4 20h16M4 4l8 16L20 4" /></svg>
+              Fibonacci Retracement
+              <span className="text-[9px] font-medium text-muted-foreground/50 ml-1">(52-week)</span>
+            </h3>
+          </div>
+          <FibonacciChart levels={fibLevels} currentPrice={quote.price} high52w={quote.high52w} low52w={quote.low52w} />
+        </div>
+      )}
+
       {/* ─── PIVOT POINTS + KEY LEVELS ─────────────────────── */}
       {pivots && (
         <div className="rounded-2xl border border-border/50 bg-card p-5 sm:p-6">
@@ -775,12 +1346,14 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
       )}
 
       {/* ─── PRICE CHART ──────────────────────────────────── */}
-      {historicalPrices.length > 0 && (
-        <PriceChart prices={historicalPrices} ticker={symbol} intradayPrices={intradayPrices.length > 0 ? intradayPrices : undefined} />
-      )}
+      <div id="chart" ref={setSectionRef("chart")} className="scroll-mt-28">
+        {historicalPrices.length > 0 && (
+          <PriceChart prices={historicalPrices} ticker={symbol} intradayPrices={intradayPrices.length > 0 ? intradayPrices : undefined} />
+        )}
+      </div>
 
       {/* ─── 3-COLUMN: Stats / Performance / Ratio+Units ──── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div id="tools" ref={setSectionRef("tools")} className="grid grid-cols-1 lg:grid-cols-3 gap-6 scroll-mt-28">
         {/* Key Statistics */}
         <div className="rounded-2xl border border-border/50 bg-card p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4">Key Statistics</h3>
@@ -939,6 +1512,65 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
               <StatRow label="Per Tola (11.66g)" value={fmtPrice(quote.price * 0.375)} />
             </div>
           </div>
+
+          {/* Position Size Calculator */}
+          {atr && (
+            <div className="rounded-2xl border border-border/50 bg-card p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <svg className="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" /><path d="M12 6v6l4 2" /></svg>
+                Position Sizer
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">Portfolio Value ($)</label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={riskCapital}
+                    onChange={(e) => setRiskCapital(e.target.value)}
+                    className="w-full mt-1 rounded-lg border border-border/50 bg-secondary/30 px-3 py-2 text-sm font-medium tabular-nums text-foreground focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/50"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">Risk per Trade (%)</label>
+                  <div className="flex gap-1 mt-1">
+                    {["1", "2", "3", "5"].map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setRiskPercent(p)}
+                        className={cn("flex-1 text-[10px] font-medium py-1.5 rounded transition-colors",
+                          riskPercent === p ? "bg-brand/10 text-brand" : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                        )}
+                      >
+                        {p}%
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {positionSize && (
+                  <div className="mt-2 pt-3 border-t border-border/20 space-y-0">
+                    <div className="flex items-center justify-between py-1.5">
+                      <span className="text-xs text-muted-foreground">Risk Amount</span>
+                      <span className="text-xs font-bold tabular-nums text-warning">{fmtPrice(positionSize.riskAmount)}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-1.5">
+                      <span className="text-xs text-muted-foreground">Stop Loss (1.5x ATR)</span>
+                      <span className="text-xs font-bold tabular-nums text-negative">{fmtPrice(positionSize.stopPrice)}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-1.5">
+                      <span className="text-xs text-muted-foreground">Position Size</span>
+                      <span className="text-xs font-bold tabular-nums text-foreground">{positionSize.units.toFixed(2)} oz</span>
+                    </div>
+                    <div className="flex items-center justify-between py-1.5">
+                      <span className="text-xs text-muted-foreground">Position Value</span>
+                      <span className="text-xs font-bold tabular-nums text-brand">{fmtPrice(positionSize.positionValue)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1033,6 +1665,17 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
                   <span className="font-bold tabular-nums">{metalRatio.toFixed(1)} : 1</span>
                 </div>
               )}
+              {/* Correlation Insights */}
+              {correlationInsight && correlationInsight.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-border/20">
+                  <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Correlation Insights</p>
+                  <div className="space-y-2">
+                    {correlationInsight.map((insight, i) => (
+                      <p key={i} className="text-[11px] text-muted-foreground/70 leading-relaxed">{insight}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1068,6 +1711,50 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ─── SEASONAL ANALYSIS ──────────────────────────── */}
+      {seasonalData && (
+        <div className="rounded-2xl border border-border/50 bg-card p-5 sm:p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <svg className="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
+              Seasonal Pattern
+              <span className="text-[9px] font-medium text-muted-foreground/50 ml-1">(5yr avg)</span>
+            </h3>
+            <span className="text-[10px] text-muted-foreground/50">Average monthly return from historical data</span>
+          </div>
+          <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
+            {seasonalData.map((m, i) => {
+              const isPos = m.avgReturn >= 0;
+              const intensity = Math.min(Math.abs(m.avgReturn) / 4, 1);
+              const isCurrent = i === currentMonth;
+              return (
+                <div
+                  key={m.name}
+                  className={cn(
+                    "rounded-lg p-2 text-center transition-all",
+                    isCurrent && "ring-2 ring-brand/40"
+                  )}
+                  style={{
+                    backgroundColor: isPos
+                      ? `rgba(74, 222, 128, ${0.04 + intensity * 0.2})`
+                      : `rgba(248, 113, 113, ${0.04 + intensity * 0.2})`,
+                  }}
+                >
+                  <p className={cn("text-[10px] font-bold uppercase", isCurrent ? "text-brand" : "text-muted-foreground/60")}>{m.name}</p>
+                  <p className={cn("text-xs font-bold tabular-nums mt-0.5", isPos ? "text-positive" : "text-negative")}>
+                    {isPos ? "+" : ""}{m.avgReturn.toFixed(1)}%
+                  </p>
+                  <p className="text-[8px] text-muted-foreground/40 mt-0.5">{m.positive.toFixed(0)}% pos</p>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-muted-foreground/40 mt-3">
+            Based on daily returns grouped by calendar month. Current month highlighted. Past performance does not guarantee future results.
+          </p>
         </div>
       )}
 
@@ -1338,6 +2025,147 @@ function RSIGauge({ value }: { value: number }) {
       <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       <circle cx={cx} cy={cy} r="2.5" fill="currentColor" />
     </svg>
+  );
+}
+
+/* ─── Stochastic Gauge ─────────────────────────────────────── */
+
+function StochasticGauge({ k, d }: { k: number; d: number }) {
+  const cx = 70, cy = 48, r = 40;
+  const needleAngle = 180 - (k / 100) * 180;
+  const needleRad = (needleAngle * Math.PI) / 180;
+  const needleLen = r * 0.6;
+  const nx = cx + needleLen * Math.cos(needleRad);
+  const ny = cy - needleLen * Math.sin(needleRad);
+
+  // %D marker
+  const dAngle = 180 - (d / 100) * 180;
+  const dRad = (dAngle * Math.PI) / 180;
+  const dx = cx + (r + 6) * Math.cos(dRad);
+  const dy = cy - (r + 6) * Math.sin(dRad);
+
+  function arcPath(startDeg: number, endDeg: number) {
+    const s = (startDeg * Math.PI) / 180;
+    const e = (endDeg * Math.PI) / 180;
+    return `M ${cx + r * Math.cos(s)} ${cy - r * Math.sin(s)} A ${r} ${r} 0 0 0 ${cx + r * Math.cos(e)} ${cy - r * Math.sin(e)}`;
+  }
+
+  return (
+    <svg viewBox="0 0 140 56" className="w-full max-w-[200px] mx-auto">
+      <path d={arcPath(180, 144)} stroke="#4ade80" strokeWidth="6" fill="none" strokeLinecap="round" opacity={0.5} />
+      <path d={arcPath(142, 38)} stroke="#a1a1aa" strokeWidth="6" fill="none" strokeLinecap="round" opacity={0.3} />
+      <path d={arcPath(36, 0)} stroke="#ef4444" strokeWidth="6" fill="none" strokeLinecap="round" opacity={0.5} />
+      <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx={cx} cy={cy} r="2.5" fill="currentColor" />
+      {/* %D marker (small triangle) */}
+      <circle cx={dx} cy={dy} r="2" fill="#f59e0b" opacity={0.8} />
+      <text x="6" y="52" className="fill-muted-foreground" fontSize="6">20</text>
+      <text x="124" y="52" className="fill-muted-foreground" fontSize="6">80</text>
+    </svg>
+  );
+}
+
+/* ─── Fibonacci Chart Visual ──────────────────────────────── */
+
+function FibonacciChart({ levels, currentPrice, high52w, low52w }: {
+  levels: { ratio: string; price: number; type: "support" | "resistance" }[];
+  currentPrice: number;
+  high52w: number;
+  low52w: number;
+}) {
+  const range = high52w - low52w;
+  if (range <= 0) return null;
+
+  function pos(price: number) {
+    return ((high52w - price) / range) * 100; // inverted: high at top
+  }
+
+  const fibColors: Record<string, string> = {
+    "0%": "bg-positive/60", "23.6%": "bg-positive/40", "38.2%": "bg-brand/40",
+    "50%": "bg-brand/50", "61.8%": "bg-warning/40", "78.6%": "bg-negative/40", "100%": "bg-negative/60",
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Visual ladder */}
+      <div className="relative bg-secondary/30 rounded-lg overflow-hidden" style={{ height: "280px" }}>
+        {levels.map((level, i) => {
+          const top = pos(level.price);
+          return (
+            <div key={level.ratio} className="absolute left-0 right-0 flex items-center" style={{ top: `${top}%` }}>
+              <div className={cn("h-px flex-1", fibColors[level.ratio] || "bg-border/40")} />
+              <div className="absolute left-3 -translate-y-1/2 flex items-center gap-2">
+                <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded",
+                  level.type === "support" ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative"
+                )}>
+                  {level.ratio}
+                </span>
+                <span className="text-xs font-medium tabular-nums text-foreground/80">{fmtPrice(level.price)}</span>
+              </div>
+            </div>
+          );
+        })}
+        {/* Current price marker */}
+        <div className="absolute left-0 right-0 flex items-center z-10" style={{ top: `${pos(currentPrice)}%` }}>
+          <div className="h-0.5 flex-1 bg-foreground/60" style={{ backgroundImage: "repeating-linear-gradient(90deg, currentColor, currentColor 4px, transparent 4px, transparent 8px)" }} />
+          <div className="absolute right-3 -translate-y-1/2 flex items-center gap-1.5">
+            <span className="text-[10px] font-bold text-foreground bg-foreground/10 px-2 py-0.5 rounded">
+              Current: {fmtPrice(currentPrice)}
+            </span>
+          </div>
+        </div>
+        {/* Zone shading between levels */}
+        {levels.slice(0, -1).map((level, i) => {
+          const nextLevel = levels[i + 1];
+          const topPos = pos(level.price);
+          const bottomPos = pos(nextLevel.price);
+          const height = bottomPos - topPos;
+          const isInZone = currentPrice <= level.price && currentPrice >= nextLevel.price;
+          return (
+            <div
+              key={`zone-${i}`}
+              className={cn("absolute left-0 right-0 transition-opacity",
+                isInZone ? "bg-brand/5" : "bg-transparent"
+              )}
+              style={{ top: `${topPos}%`, height: `${height}%` }}
+            />
+          );
+        })}
+      </div>
+
+      {/* Summary table */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {levels.filter(l => l.ratio !== "0%" && l.ratio !== "100%").map((level) => {
+          const dist = ((currentPrice - level.price) / level.price) * 100;
+          return (
+            <div key={level.ratio} className={cn("rounded-lg p-2.5 text-center",
+              level.type === "support" ? "bg-positive/5" : "bg-negative/5"
+            )}>
+              <p className="text-[10px] font-bold text-muted-foreground/60">{level.ratio}</p>
+              <p className="text-xs font-bold tabular-nums text-foreground mt-0.5">{fmtPrice(level.price)}</p>
+              <p className={cn("text-[10px] font-medium tabular-nums", dist >= 0 ? "text-positive" : "text-negative")}>
+                {dist >= 0 ? "+" : ""}{dist.toFixed(2)}%
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Nearest Fib level callout */}
+      {(() => {
+        const nearest = levels.reduce((best, lvl) => {
+          const d = Math.abs(currentPrice - lvl.price);
+          return d < Math.abs(currentPrice - best.price) ? lvl : best;
+        }, levels[0]);
+        const dist = ((currentPrice - nearest.price) / nearest.price) * 100;
+        return (
+          <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
+            Price is nearest the <span className="font-bold text-foreground">{nearest.ratio}</span> level at {fmtPrice(nearest.price)} ({dist >= 0 ? "+" : ""}{dist.toFixed(2)}% away).
+            {nearest.type === "support" ? " This level may act as support." : " This level may act as resistance."}
+          </p>
+        );
+      })()}
+    </div>
   );
 }
 

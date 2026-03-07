@@ -20,9 +20,8 @@ export const dataConfig = {
     rateLimit: 300, // requests per minute (Starter tier)
   },
   apiNinjas: {
-    baseUrl: "https://api.api-ninjas.com/v1",
-    apiKey: process.env.API_NINJAS_API_KEY ?? "",
-    rateLimit: 50, // requests per second (Developer tier)
+    baseUrl: "https://api.api-ninjas.com",
+    apiKey: process.env.API_NINJAS_KEY ?? "",
   },
   cache: {
     dir: ".cache",

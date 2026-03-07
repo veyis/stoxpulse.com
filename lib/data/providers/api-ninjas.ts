@@ -1,11 +1,14 @@
-import type { DataProvider, EarningsTranscript, TranscriptSpeaker } from "../types";
+import type { DataProvider, EarningsTranscript } from "../types";
 import { dataConfig, isProviderEnabled } from "../config";
 import { getCached, setCache } from "../cache";
 
-const { baseUrl, apiKey } = dataConfig.apiNinjas;
+const { baseUrl, apiKey } = dataConfig.apiNinjas ?? { baseUrl: "", apiKey: "" };
 
-async function ninjasFetch<T>(endpoint: string, params: Record<string, string> = {}): Promise<T | null> {
-  if (!isProviderEnabled("apiNinjas")) return null;
+async function apiNinjasFetch<T>(
+  endpoint: string,
+  params: Record<string, string> = {}
+): Promise<T | null> {
+  if (!isProviderEnabled("apiNinjas") || !apiKey) return null;
 
   const url = new URL(`${baseUrl}${endpoint}`);
   for (const [key, val] of Object.entries(params)) {
@@ -15,7 +18,7 @@ async function ninjasFetch<T>(endpoint: string, params: Record<string, string> =
   try {
     const res = await fetch(url.toString(), {
       headers: { "X-Api-Key": apiKey },
-      next: { revalidate: 86400 }, // transcripts rarely change
+      cache: "no-store",
     });
     if (!res.ok) {
       console.error(`API Ninjas ${endpoint}: ${res.status}`);
@@ -28,66 +31,41 @@ async function ninjasFetch<T>(endpoint: string, params: Record<string, string> =
   }
 }
 
-// ── Response types ─────────────────────────────────────────────────
-
-interface NinjasTranscript {
-  ticker: string;
+interface ApiNinjasTranscript {
   transcript: string;
-  participants?: Array<{
-    name: string;
-    role: string;
-    company: string;
-  }>;
-  summary?: string;
-  sentiment?: {
-    overall: string;
-    score: number;
-  };
-  risk_factors?: string[];
-  key_metrics?: Record<string, string | number>;
-  date?: string;
-  quarter?: number;
-  year?: number;
+  year: number;
+  quarter: number;
+  ticker: string;
 }
-
-// ── Provider Implementation ────────────────────────────────────────
 
 export const apiNinjasProvider: DataProvider = {
   name: "apiNinjas",
 
-  async getTranscript(ticker: string, quarter: number, year: number): Promise<EarningsTranscript | null> {
-    const cacheKey = `ninjas_transcript_${ticker}_${year}_Q${quarter}`;
+  async getTranscript(
+    ticker: string,
+    quarter: number,
+    year: number
+  ): Promise<EarningsTranscript | null> {
+    const cacheKey = `apiNinjas_transcript_${ticker}_${quarter}_${year}`;
     const cached = await getCached<EarningsTranscript>(cacheKey);
     if (cached) return cached;
 
-    const data = await ninjasFetch<NinjasTranscript>("/earningstranscript", {
-      ticker,
-      quarter: String(quarter),
-      year: String(year),
-    });
+    const data = await apiNinjasFetch<ApiNinjasTranscript[]>(
+      "/v1/earningstranscript",
+      { ticker, year: String(year), quarter: String(quarter) }
+    );
+    if (!data || data.length === 0) return null;
 
-    if (!data?.transcript) return null;
-
-    // Parse speakers from transcript if available
-    const speakers: TranscriptSpeaker[] = data.participants?.map((p) => ({
-      name: p.name,
-      role: p.role,
-      text: "", // Full text extraction would need NLP parsing
-    })) ?? [];
-
-    const transcript: EarningsTranscript = {
-      ticker,
-      quarter,
-      year,
-      date: data.date ?? "",
-      content: data.transcript,
-      speakers: speakers.length > 0 ? speakers : undefined,
-      aiSummary: data.summary,
-      sentiment: data.sentiment?.overall,
-      riskFactors: data.risk_factors,
+    const item = data[0];
+    const result: EarningsTranscript = {
+      ticker: item.ticker,
+      quarter: item.quarter,
+      year: item.year,
+      date: `${item.year}-Q${item.quarter}`,
+      content: item.transcript,
     };
 
-    await setCache(cacheKey, transcript, dataConfig.cache.ttl.earnings);
-    return transcript;
+    await setCache(cacheKey, result, 60 * 60 * 24 * 7); // 7 days
+    return result;
   },
 };

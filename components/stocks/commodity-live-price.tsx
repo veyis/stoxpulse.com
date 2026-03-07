@@ -1576,7 +1576,7 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
 
       {/* ─── MARKET CONTEXT (Currencies, VIX, SPY, Events) ── */}
       {context && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div id="market" ref={setSectionRef("market")} className="grid grid-cols-1 lg:grid-cols-3 gap-6 scroll-mt-28">
           {/* Currency Conversions */}
           {context.currencies && Object.keys(context.currencies).length > 0 && (
             <div className="rounded-2xl border border-border/50 bg-card p-5">
@@ -1760,7 +1760,7 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
 
       {/* ─── LATEST NEWS (Featured Layout) ─────────────────── */}
       {technicals?.news && technicals.news.length > 0 && (
-        <div>
+        <div id="news" ref={setSectionRef("news")} className="scroll-mt-28">
           <h2 className="text-sm font-semibold text-foreground mb-4">
             Latest {shortName} News
           </h2>

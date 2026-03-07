@@ -1714,6 +1714,171 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
         </div>
       )}
 
+      {/* ─── DRAWDOWN + INVESTMENT RETURNS + TRADE PLANNER ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Drawdown Analysis */}
+        {drawdownData && (
+          <div className="rounded-2xl border border-border/50 bg-card p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <svg className="size-4 text-negative" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 17l5-5-5-5M6 17l5-5-5-5" /></svg>
+              Drawdown Analysis
+            </h3>
+            <div className="space-y-3">
+              {/* Current drawdown visual */}
+              <div className="p-3 rounded-lg bg-secondary/30">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">Current from Peak</span>
+                  <span className={cn("text-xs font-bold tabular-nums",
+                    drawdownData.currentDD === 0 ? "text-positive" : drawdownData.currentDD > -5 ? "text-warning" : "text-negative"
+                  )}>
+                    {drawdownData.currentDD === 0 ? "At Peak!" : `${drawdownData.currentDD.toFixed(2)}%`}
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                  <div className={cn("h-full rounded-full transition-all",
+                    drawdownData.currentDD === 0 ? "bg-positive" : drawdownData.currentDD > -5 ? "bg-warning" : "bg-negative"
+                  )} style={{ width: `${100 + drawdownData.currentDD}%` }} />
+                </div>
+                {drawdownData.daysSinceATH > 0 && (
+                  <p className="text-[10px] text-muted-foreground/50 mt-1.5">{drawdownData.daysSinceATH} days since peak at {fmtPrice(drawdownData.ath)}</p>
+                )}
+              </div>
+
+              <div className="space-y-0">
+                <StatRow label="Max Drawdown (5yr)" value={`${drawdownData.maxDD.toFixed(1)}%`} />
+                <StatRow label="Max DD Period" value={`${new Date(drawdownData.maxDDPeakDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "2-digit" })} → ${new Date(drawdownData.maxDDDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "2-digit" })}`} />
+                {drawdownData.avgRecovery != null && (
+                  <StatRow label="Avg Recovery" value={`~${drawdownData.avgRecovery} days`} />
+                )}
+              </div>
+
+              {drawdownData.currentDD < -10 && (
+                <p className="text-[10px] text-positive/70 leading-relaxed mt-1">
+                  Significant drawdown — historically, large pullbacks have been buying opportunities for long-term holders.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Investment Return Calculator */}
+        {investmentReturns && investmentReturns.length > 0 && (
+          <div className="rounded-2xl border border-border/50 bg-card p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <svg className="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /></svg>
+              If You Invested $1,000
+            </h3>
+            <div className="space-y-2">
+              {investmentReturns.map((r) => {
+                const isPos = r.returnPct >= 0;
+                return (
+                  <div key={r.label} className="flex items-center justify-between py-2.5 border-b border-border/10 last:border-0">
+                    <div>
+                      <p className="text-xs font-medium text-foreground">{r.label} Ago</p>
+                      <p className="text-[10px] text-muted-foreground/50">at {fmtPrice(r.pastPrice)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={cn("text-sm font-bold tabular-nums", isPos ? "text-positive" : "text-negative")}>
+                        {fmtPrice(r.$1000value)}
+                      </p>
+                      <div className="flex items-center gap-1.5 justify-end">
+                        <span className={cn("text-[10px] font-bold tabular-nums", isPos ? "text-positive" : "text-negative")}>
+                          {isPos ? "+" : ""}{r.returnPct.toFixed(1)}%
+                        </span>
+                        <span className="text-[9px] text-muted-foreground/40">({r.annualized >= 0 ? "+" : ""}{r.annualized.toFixed(1)}% ann.)</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-muted-foreground/40 mt-3">Based on historical closing prices. Past performance does not guarantee future results.</p>
+          </div>
+        )}
+
+        {/* What-If Trade Planner */}
+        <div className="rounded-2xl border border-border/50 bg-card p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <svg className="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z" /></svg>
+            Trade Planner
+          </h3>
+          <div className="space-y-2.5">
+            <div>
+              <label className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">Entry Price</label>
+              <input type="number" inputMode="decimal" value={tradeEntry} placeholder={quote.price.toFixed(2)}
+                onChange={(e) => setTradeEntry(e.target.value)}
+                className="w-full mt-1 rounded-lg border border-border/50 bg-secondary/30 px-3 py-2 text-sm font-medium tabular-nums text-foreground focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/50"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] font-medium text-positive/60 uppercase tracking-wider">Target</label>
+                <input type="number" inputMode="decimal" value={tradeTarget} placeholder={(quote.price * 1.05).toFixed(2)}
+                  onChange={(e) => setTradeTarget(e.target.value)}
+                  className="w-full mt-1 rounded-lg border border-positive/20 bg-positive/5 px-3 py-2 text-sm font-medium tabular-nums text-foreground focus:outline-none focus:ring-2 focus:ring-positive/30"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-medium text-negative/60 uppercase tracking-wider">Stop Loss</label>
+                <input type="number" inputMode="decimal" value={tradeStop} placeholder={(quote.price * 0.97).toFixed(2)}
+                  onChange={(e) => setTradeStop(e.target.value)}
+                  className="w-full mt-1 rounded-lg border border-negative/20 bg-negative/5 px-3 py-2 text-sm font-medium tabular-nums text-foreground focus:outline-none focus:ring-2 focus:ring-negative/30"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">Size (Troy Oz)</label>
+              <input type="number" inputMode="decimal" value={tradeSize}
+                onChange={(e) => setTradeSize(e.target.value)}
+                className="w-full mt-1 rounded-lg border border-border/50 bg-secondary/30 px-3 py-2 text-sm font-medium tabular-nums text-foreground focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/50"
+              />
+            </div>
+
+            {tradeAnalysis && (
+              <div className="mt-2 pt-3 border-t border-border/20">
+                {/* R:R Visual Bar */}
+                <div className="flex items-center gap-0.5 mb-3 h-6 rounded-lg overflow-hidden">
+                  <div className="h-full bg-negative/20 flex items-center justify-center"
+                    style={{ width: `${(Math.abs(tradeAnalysis.riskPct) / (Math.abs(tradeAnalysis.riskPct) + Math.abs(tradeAnalysis.rewardPct))) * 100}%` }}>
+                    <span className="text-[9px] font-bold text-negative px-1">Risk</span>
+                  </div>
+                  <div className="h-full bg-positive/20 flex items-center justify-center"
+                    style={{ width: `${(Math.abs(tradeAnalysis.rewardPct) / (Math.abs(tradeAnalysis.riskPct) + Math.abs(tradeAnalysis.rewardPct))) * 100}%` }}>
+                    <span className="text-[9px] font-bold text-positive px-1">Reward</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                  <div className="rounded-lg bg-secondary/30 p-2">
+                    <p className="text-[9px] text-muted-foreground/60 uppercase">R:R Ratio</p>
+                    <p className={cn("text-sm font-bold tabular-nums",
+                      tradeAnalysis.rrRatio >= 2 ? "text-positive" : tradeAnalysis.rrRatio >= 1 ? "text-warning" : "text-negative"
+                    )}>1:{tradeAnalysis.rrRatio.toFixed(1)}</p>
+                  </div>
+                  <div className="rounded-lg bg-positive/5 p-2">
+                    <p className="text-[9px] text-positive/60 uppercase">Profit</p>
+                    <p className="text-sm font-bold tabular-nums text-positive">{tradeAnalysis.reward >= 0 ? "+" : ""}{fmtPrice(tradeAnalysis.reward)}</p>
+                  </div>
+                  <div className="rounded-lg bg-negative/5 p-2">
+                    <p className="text-[9px] text-negative/60 uppercase">Loss</p>
+                    <p className="text-sm font-bold tabular-nums text-negative">-{fmtPrice(Math.abs(tradeAnalysis.risk))}</p>
+                  </div>
+                </div>
+
+                <p className={cn("text-[10px] text-center font-medium",
+                  tradeAnalysis.rrRatio >= 2 ? "text-positive/70" : tradeAnalysis.rrRatio >= 1 ? "text-warning/70" : "text-negative/70"
+                )}>
+                  {tradeAnalysis.rrRatio >= 3 ? "Excellent risk/reward setup" :
+                   tradeAnalysis.rrRatio >= 2 ? "Good risk/reward ratio" :
+                   tradeAnalysis.rrRatio >= 1 ? "Acceptable but tight R:R" :
+                   "Poor risk/reward — consider adjusting levels"}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* ─── SEASONAL ANALYSIS ──────────────────────────── */}
       {seasonalData && (
         <div className="rounded-2xl border border-border/50 bg-card p-5 sm:p-6">

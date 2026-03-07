@@ -12,6 +12,8 @@ import type {
   HistoricalPrice,
   AnalystRecommendation,
   AnalystEstimate,
+  PriceTarget,
+  UpgradeDowngrade,
 } from "@/lib/data/types";
 
 export interface StockContext {
@@ -29,6 +31,8 @@ export interface StockContext {
   historicalPrices: HistoricalPrice[];
   recommendations: AnalystRecommendation[];
   analystEstimates: AnalystEstimate[];
+  priceTargets: PriceTarget[];
+  upgradesDowngrades: UpgradeDowngrade[];
 }
 
 // ── Formatters (compact) ─────────────────────────────────────────
@@ -287,6 +291,34 @@ export function buildStockPrompt(ctx: StockContext): string {
   }
 
   // ──────────────────────────────────────────────────────
+  // SECTION 8b: PRICE TARGETS
+  // ──────────────────────────────────────────────────────
+  if (ctx.priceTargets.length > 0) {
+    parts.push(`\n--- PRICE TARGETS ---`);
+    const targets = ctx.priceTargets.slice(0, 6);
+    for (const pt of targets) {
+      parts.push(`${pt.date}: ${pt.analystCompany} (${pt.analystName}) — $${pt.targetPrice.toFixed(2)}`);
+    }
+    // Calculate consensus target
+    const avgTarget = targets.reduce((s, t) => s + t.targetPrice, 0) / targets.length;
+    parts.push(`Avg Target: $${avgTarget.toFixed(2)}`);
+    if (ctx.quote) {
+      const upside = ((avgTarget - ctx.quote.price) / ctx.quote.price * 100).toFixed(1);
+      parts.push(`Implied Upside: ${Number(upside) >= 0 ? "+" : ""}${upside}%`);
+    }
+  }
+
+  // ──────────────────────────────────────────────────────
+  // SECTION 8c: UPGRADES / DOWNGRADES
+  // ──────────────────────────────────────────────────────
+  if (ctx.upgradesDowngrades.length > 0) {
+    parts.push(`\n--- RECENT UPGRADES/DOWNGRADES ---`);
+    for (const ud of ctx.upgradesDowngrades.slice(0, 5)) {
+      parts.push(`${ud.date}: ${ud.analystCompany} ${ud.action} — ${ud.ratingFrom} → ${ud.ratingTo}`);
+    }
+  }
+
+  // ──────────────────────────────────────────────────────
   // SECTION 9: INSIDER TRADES
   // ──────────────────────────────────────────────────────
   if (ctx.insiderTrades.length > 0) {
@@ -381,12 +413,16 @@ ANALYSIS FRAMEWORK — Apply this systematically:
    - Large discretionary sells outside plans: concerning
    - Routine 10b5-1 sells: typically not meaningful
 
-6. ANALYST CONSENSUS
+6. ANALYST CONSENSUS & PRICE TARGETS
    - >80% buy ratings: strong consensus (analyst-upgrade)
    - Consensus shifting: upgrades/downgrades in trend (analyst-upgrade/downgrade)
    - <50% buy ratings: weak consensus (analyst-downgrade)
    - Estimate revisions up: positive trajectory
    - Estimate revisions down: negative trajectory
+   - Price target consensus significantly above current price (>20% upside): bullish
+   - Price target consensus below current price: stock may be overextended
+   - Recent upgrade clusters: sentiment shift (analyst-upgrade)
+   - Recent downgrade clusters: deteriorating outlook (analyst-downgrade)
 
 7. CATALYSTS & RISKS
    - Upcoming earnings within 14 days: event risk/opportunity

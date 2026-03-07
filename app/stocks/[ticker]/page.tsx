@@ -14,7 +14,6 @@ import { StockHeader } from "@/components/stocks/stock-header";
 import { StockTabs } from "@/components/stocks/stock-tabs";
 import { AIInsightCard } from "@/components/stocks/ai-insight-card";
 import { CommodityLivePrice } from "@/components/stocks/commodity-live-price";
-import { PriceChart } from "@/components/stocks/price-chart";
 import {
   sp500Stocks,
   getStockByTicker,
@@ -23,7 +22,7 @@ import {
   slugToTicker,
 } from "@/data/stocks/sp500";
 import { commodities, getCommodityBySlug, type CommodityInfo } from "@/data/commodities";
-import { getStockPageData, getQuote, getProfile, getHistoricalPrices } from "@/lib/data";
+import { getStockPageData, getQuote, getProfile } from "@/lib/data";
 
 export function generateStaticParams() {
   const stockParams = sp500Stocks.map((stock) => ({
@@ -375,9 +374,7 @@ export default async function StockPage({ params }: Props) {
 
 // ── Commodity Detail Page ────────────────────────────────────────
 
-async function CommodityPage({ commodity }: { commodity: CommodityInfo }) {
-  const historicalPrices = await getHistoricalPrices(commodity.symbol).catch(() => []);
-
+function CommodityPage({ commodity }: { commodity: CommodityInfo }) {
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -436,17 +433,14 @@ async function CommodityPage({ commodity }: { commodity: CommodityInfo }) {
             </div>
           </header>
 
-          {/* Live Price + Stats (client component, polls every 30s) */}
+          {/* Live Price + Chart + Stats + Related ETFs (client, polls every 30s) */}
           <section className="mb-8">
-            <CommodityLivePrice symbol={commodity.symbol} unit={commodity.unit} />
+            <CommodityLivePrice
+              symbol={commodity.symbol}
+              unit={commodity.unit}
+              relatedETFs={commodity.relatedETFs}
+            />
           </section>
-
-          {/* Price Chart */}
-          {historicalPrices.length > 0 && (
-            <section className="mb-8">
-              <PriceChart prices={historicalPrices} ticker={commodity.symbol} />
-            </section>
-          )}
 
           {/* About */}
           <section className="mb-8">
@@ -475,28 +469,6 @@ async function CommodityPage({ commodity }: { commodity: CommodityInfo }) {
                   </div>
                 ))}
               </div>
-            </div>
-          </section>
-
-          {/* Related ETFs */}
-          <section className="mb-8">
-            <h2 className="font-display text-xl font-bold text-foreground mb-6">
-              Related <span className="text-brand/80">{commodity.shortName}</span> ETFs
-            </h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {commodity.relatedETFs.map((etf) => (
-                <Link
-                  key={etf.ticker}
-                  href={`/stocks/${etf.ticker.toLowerCase()}`}
-                  className="group flex items-center gap-4 rounded-xl border border-border/50 bg-surface-1/40 backdrop-blur-md px-5 py-4 transition-all duration-300 hover:border-brand/30 hover:bg-surface-1/60 hover:-translate-y-0.5 hover:shadow-md hover:shadow-brand/5"
-                >
-                  <div className="min-w-0 flex-1">
-                    <span className="font-display text-base font-bold text-foreground group-hover:text-brand transition-colors">{etf.ticker}</span>
-                    <p className="text-[13px] font-medium text-muted-foreground truncate leading-relaxed group-hover:text-foreground/80 transition-colors">{etf.name}</p>
-                  </div>
-                  <ArrowRight className="size-4 shrink-0 text-muted-foreground/30 group-hover:text-brand transition-all duration-300 group-hover:translate-x-1" />
-                </Link>
-              ))}
             </div>
           </section>
 

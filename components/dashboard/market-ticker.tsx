@@ -11,17 +11,20 @@ interface TickerQuote {
   changePercent: number;
 }
 
+const NON_STOCK_SYMBOLS = new Set(["XAUUSD", "XAGUSD"]);
+
 function TickerItem({ q, onNavigate }: { q: TickerQuote; onNavigate: (symbol: string) => void }) {
   const isPositive = q.changePercent >= 0;
+  const isClickable = !NON_STOCK_SYMBOLS.has(q.ticker ?? q.symbol);
   return (
     <span
-      role="link"
-      tabIndex={0}
-      onMouseDown={(e) => {
+      role={isClickable ? "link" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onMouseDown={isClickable ? (e) => {
         e.preventDefault();
         onNavigate(q.ticker ?? q.symbol);
-      }}
-      className="inline-flex items-center gap-1.5 px-5 whitespace-nowrap cursor-pointer hover:opacity-70 transition-opacity"
+      } : undefined}
+      className={`inline-flex items-center gap-1.5 px-5 whitespace-nowrap transition-opacity ${isClickable ? "cursor-pointer hover:opacity-70" : ""}`}
     >
       <span className="font-mono font-bold text-sm text-foreground">{q.symbol}</span>
       <span className="font-mono text-sm tabular-nums text-muted-foreground">
@@ -63,11 +66,7 @@ export function MarketTicker() {
     };
   }, []);
 
-  // Commodities/forex symbols that don't have stock pages
-  const nonStockSymbols = new Set(["XAUUSD", "XAGUSD"]);
-
   function handleNavigate(symbol: string) {
-    if (nonStockSymbols.has(symbol)) return;
     const slug = symbol.toLowerCase().replace(/\./g, "-");
     router.push(`/stocks/${slug}`);
   }

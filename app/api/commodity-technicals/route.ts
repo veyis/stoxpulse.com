@@ -9,6 +9,7 @@ interface FMPTechnical {
   volume: number;
   rsi?: number;
   sma?: number;
+  ema?: number;
 }
 
 interface FMPQuote {
@@ -50,13 +51,21 @@ export async function GET(request: NextRequest) {
   const base = "https://financialmodelingprep.com/stable";
 
   try {
-    const [rsiRes, sma20Res, otherQuoteRes, newsRes] = await Promise.all([
+    const [rsiRes, sma20Res, ema9Res, ema21Res, otherQuoteRes, newsRes] = await Promise.all([
       fetch(
         `${base}/technical-indicators/rsi?symbol=${symbol}&timeframe=1day&periodLength=14&apikey=${apiKey}`,
         { cache: "no-store" }
       ),
       fetch(
         `${base}/technical-indicators/sma?symbol=${symbol}&timeframe=1day&periodLength=20&apikey=${apiKey}`,
+        { cache: "no-store" }
+      ),
+      fetch(
+        `${base}/technical-indicators/ema?symbol=${symbol}&timeframe=1day&periodLength=9&apikey=${apiKey}`,
+        { cache: "no-store" }
+      ),
+      fetch(
+        `${base}/technical-indicators/ema?symbol=${symbol}&timeframe=1day&periodLength=21&apikey=${apiKey}`,
         { cache: "no-store" }
       ),
       fetch(
@@ -84,6 +93,22 @@ export async function GET(request: NextRequest) {
       const smaData: FMPTechnical[] = await sma20Res.json();
       if (smaData?.[0]?.sma != null) {
         result.sma20 = smaData[0].sma;
+      }
+    }
+
+    // EMA 9
+    if (ema9Res.ok) {
+      const ema9Data: FMPTechnical[] = await ema9Res.json();
+      if (ema9Data?.[0]?.ema != null) {
+        result.ema9 = ema9Data[0].ema;
+      }
+    }
+
+    // EMA 21
+    if (ema21Res.ok) {
+      const ema21Data: FMPTechnical[] = await ema21Res.json();
+      if (ema21Data?.[0]?.ema != null) {
+        result.ema21 = ema21Data[0].ema;
       }
     }
 

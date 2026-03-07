@@ -343,11 +343,17 @@ export function PriceChart({ prices, ticker, quote, className, intradayPrices }:
               <span className="text-xs font-medium text-muted-foreground">{ticker}</span>
               {currentPrice && (
                 <span className="text-xs text-muted-foreground/60">
-                  {new Date(currentPrice.date + "T12:00:00").toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+                  {(() => {
+                    const d = currentPrice.date.includes(" ")
+                      ? new Date(currentPrice.date.replace(" ", "T") + "Z")
+                      : new Date(currentPrice.date + "T12:00:00");
+                    return d.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      ...(currentPrice.date.includes(" ") ? { hour: "numeric", minute: "2-digit" } : {}),
+                    });
+                  })()}
                 </span>
               )}
             </div>

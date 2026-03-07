@@ -89,6 +89,49 @@ export default function RootLayout({
             __html: `(function(){try{var t=localStorage.getItem("theme");if(t==="dark"){document.documentElement.classList.add("dark")}}catch(e){}})()`,
           }}
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "StoxPulse",
+              url: "https://stoxpulse.com",
+              logo: "https://stoxpulse.com/images/related/logo1.png",
+              description:
+                "AI-powered stock intelligence platform that reads earnings calls, analyzes SEC filings, and scores financial news for retail investors.",
+              sameAs: [
+                "https://x.com/stoxpulse",
+              ],
+              foundingDate: "2026",
+              contactPoint: {
+                "@type": "ContactPoint",
+                contactType: "customer support",
+                url: "https://stoxpulse.com",
+              },
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "StoxPulse",
+              url: "https://stoxpulse.com",
+              potentialAction: {
+                "@type": "SearchAction",
+                target: {
+                  "@type": "EntryPoint",
+                  urlTemplate:
+                    "https://stoxpulse.com/stocks/{search_term_string}",
+                },
+                "query-input": "required name=search_term_string",
+              },
+            }),
+          }}
+        />
       </head>
       <body className={`${inter.variable} ${spaceGrotesk.variable}`}>
         {children}

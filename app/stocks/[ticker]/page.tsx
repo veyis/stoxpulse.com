@@ -282,6 +282,88 @@ export default async function StockPage({ params }: Props) {
             />
           </section>
 
+          {/* Deep-Dive Links — SEO Internal Link Hub */}
+          <section className="mb-8 sm:mb-12">
+            <h2 className="font-display text-xl font-bold text-foreground mb-4">
+              Deep Dive into <span className="text-brand">{stock.ticker}</span>
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Link
+                href={`/stocks/${tickerToSlug(stock.ticker)}/insider-trading`}
+                className="group flex items-center gap-4 rounded-xl border border-border/50 bg-surface-1/40 backdrop-blur-md px-5 py-4 transition-all duration-300 hover:border-brand/30 hover:bg-surface-1/60 hover:-translate-y-0.5 hover:shadow-md hover:shadow-brand/5"
+              >
+                <div className="flex items-center justify-center size-10 rounded-lg bg-brand/10 border border-brand/20 shrink-0">
+                  <TrendingUp className="size-5 text-brand" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="font-display text-[15px] font-semibold text-foreground group-hover:text-brand transition-colors">
+                    {stock.ticker} Insider Trading
+                  </span>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                    Track Form 4 filings — see who&apos;s buying &amp; selling
+                  </p>
+                </div>
+                <ArrowRight className="size-4 shrink-0 text-muted-foreground/30 group-hover:text-brand transition-all duration-300 group-hover:translate-x-1" />
+              </Link>
+              <Link
+                href="/tools/stock-sentiment-checker"
+                className="group flex items-center gap-4 rounded-xl border border-border/50 bg-surface-1/40 backdrop-blur-md px-5 py-4 transition-all duration-300 hover:border-brand/30 hover:bg-surface-1/60 hover:-translate-y-0.5 hover:shadow-md hover:shadow-brand/5"
+              >
+                <div className="flex items-center justify-center size-10 rounded-lg bg-brand/10 border border-brand/20 shrink-0">
+                  <TrendingUp className="size-5 text-brand" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="font-display text-[15px] font-semibold text-foreground group-hover:text-brand transition-colors">
+                    {stock.ticker} Sentiment Check
+                  </span>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                    AI-powered news, social &amp; analyst sentiment score
+                  </p>
+                </div>
+                <ArrowRight className="size-4 shrink-0 text-muted-foreground/30 group-hover:text-brand transition-all duration-300 group-hover:translate-x-1" />
+              </Link>
+            </div>
+          </section>
+
+          {/* Related Blog Posts — Topical Authority Building */}
+          <section className="mb-8 sm:mb-12">
+            <h2 className="font-display text-lg font-bold text-foreground mb-4">
+              Related Reading
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Link
+                href="/blog/insider-trading-form-4-guide"
+                className="group rounded-xl border border-border/50 bg-surface-1/30 p-4 hover:border-brand/20 transition-all"
+              >
+                <span className="text-xs font-medium text-brand">SEC Filings</span>
+                <h3 className="text-sm font-semibold text-foreground mt-1 group-hover:text-brand transition-colors leading-snug">
+                  Insider Trading: What Form 4 Tells Investors
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1.5">7 min read</p>
+              </Link>
+              <Link
+                href="/blog/how-to-read-earnings-call-transcript"
+                className="group rounded-xl border border-border/50 bg-surface-1/30 p-4 hover:border-brand/20 transition-all"
+              >
+                <span className="text-xs font-medium text-brand">Earnings</span>
+                <h3 className="text-sm font-semibold text-foreground mt-1 group-hover:text-brand transition-colors leading-snug">
+                  How to Read an Earnings Call Transcript
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1.5">6 min read</p>
+              </Link>
+              <Link
+                href="/blog/sec-filings-explained-10k-10q-8k"
+                className="group rounded-xl border border-border/50 bg-surface-1/30 p-4 hover:border-brand/20 transition-all"
+              >
+                <span className="text-xs font-medium text-brand">SEC Filings</span>
+                <h3 className="text-sm font-semibold text-foreground mt-1 group-hover:text-brand transition-colors leading-snug">
+                  SEC Filings Explained: 10-K vs 10-Q vs 8-K
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1.5">7 min read</p>
+              </Link>
+            </div>
+          </section>
+
           {/* Related Stocks */}
           {relatedStocks.length > 0 && (
             <section className="mb-12">

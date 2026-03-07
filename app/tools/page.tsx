@@ -122,7 +122,7 @@ export default function ToolsPage() {
                 href={tool.href}
                 className="group relative rounded-2xl bg-surface-1 border border-border p-6 hover:border-brand/40 transition-colors duration-200"
               >
-                {tool.name !== "SEC Filing Translator" && (
+                {tool.name !== "SEC Filing Translator" && tool.name !== "Stock Sentiment Checker" && (
                   <span className="absolute top-4 right-4 inline-flex items-center rounded-full bg-warning/10 border border-warning/20 px-2.5 py-0.5 text-xs font-medium text-warning">
                     Coming Soon
                   </span>

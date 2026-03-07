@@ -51,31 +51,17 @@ export async function GET(request: NextRequest) {
   const base = "https://financialmodelingprep.com/stable";
 
   try {
-    const [rsiRes, sma20Res, ema9Res, ema21Res, otherQuoteRes, newsRes] = await Promise.all([
-      fetch(
-        `${base}/technical-indicators/rsi?symbol=${symbol}&timeframe=1day&periodLength=14&apikey=${apiKey}`,
-        { cache: "no-store" }
-      ),
-      fetch(
-        `${base}/technical-indicators/sma?symbol=${symbol}&timeframe=1day&periodLength=20&apikey=${apiKey}`,
-        { cache: "no-store" }
-      ),
-      fetch(
-        `${base}/technical-indicators/ema?symbol=${symbol}&timeframe=1day&periodLength=9&apikey=${apiKey}`,
-        { cache: "no-store" }
-      ),
-      fetch(
-        `${base}/technical-indicators/ema?symbol=${symbol}&timeframe=1day&periodLength=21&apikey=${apiKey}`,
-        { cache: "no-store" }
-      ),
-      fetch(
-        `${base}/quote?symbol=${OTHER_METAL[symbol]}&apikey=${apiKey}`,
-        { cache: "no-store" }
-      ),
-      fetch(
-        `${base}/news/stock?symbols=${symbol}&limit=6&apikey=${apiKey}`,
-        { cache: "no-store" }
-      ),
+    const [rsiRes, rsi4hRes, sma20Res, sma50Res, sma200Res, ema9Res, ema21Res, ema50Res, otherQuoteRes, newsRes] = await Promise.all([
+      fetch(`${base}/technical-indicators/rsi?symbol=${symbol}&timeframe=1day&periodLength=14&apikey=${apiKey}`, { cache: "no-store" }),
+      fetch(`${base}/technical-indicators/rsi?symbol=${symbol}&timeframe=4hour&periodLength=14&apikey=${apiKey}`, { cache: "no-store" }),
+      fetch(`${base}/technical-indicators/sma?symbol=${symbol}&timeframe=1day&periodLength=20&apikey=${apiKey}`, { cache: "no-store" }),
+      fetch(`${base}/technical-indicators/sma?symbol=${symbol}&timeframe=1day&periodLength=50&apikey=${apiKey}`, { cache: "no-store" }),
+      fetch(`${base}/technical-indicators/sma?symbol=${symbol}&timeframe=1day&periodLength=200&apikey=${apiKey}`, { cache: "no-store" }),
+      fetch(`${base}/technical-indicators/ema?symbol=${symbol}&timeframe=1day&periodLength=9&apikey=${apiKey}`, { cache: "no-store" }),
+      fetch(`${base}/technical-indicators/ema?symbol=${symbol}&timeframe=1day&periodLength=21&apikey=${apiKey}`, { cache: "no-store" }),
+      fetch(`${base}/technical-indicators/ema?symbol=${symbol}&timeframe=1day&periodLength=50&apikey=${apiKey}`, { cache: "no-store" }),
+      fetch(`${base}/quote?symbol=${OTHER_METAL[symbol]}&apikey=${apiKey}`, { cache: "no-store" }),
+      fetch(`${base}/news/stock?symbols=${symbol}&limit=6&apikey=${apiKey}`, { cache: "no-store" }),
     ]);
 
     const result: Record<string, unknown> = {};
@@ -88,11 +74,35 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // RSI 4-hour
+    if (rsi4hRes.ok) {
+      const rsi4hData: FMPTechnical[] = await rsi4hRes.json();
+      if (rsi4hData?.[0]?.rsi != null) {
+        result.rsi4h = rsi4hData[0].rsi;
+      }
+    }
+
     // SMA 20 — just the latest value
     if (sma20Res.ok) {
       const smaData: FMPTechnical[] = await sma20Res.json();
       if (smaData?.[0]?.sma != null) {
         result.sma20 = smaData[0].sma;
+      }
+    }
+
+    // SMA 50 (from API, more accurate than quote's priceAvg50)
+    if (sma50Res.ok) {
+      const sma50Data: FMPTechnical[] = await sma50Res.json();
+      if (sma50Data?.[0]?.sma != null) {
+        result.sma50 = sma50Data[0].sma;
+      }
+    }
+
+    // SMA 200 (from API, more accurate than quote's priceAvg200)
+    if (sma200Res.ok) {
+      const sma200Data: FMPTechnical[] = await sma200Res.json();
+      if (sma200Data?.[0]?.sma != null) {
+        result.sma200 = sma200Data[0].sma;
       }
     }
 
@@ -109,6 +119,14 @@ export async function GET(request: NextRequest) {
       const ema21Data: FMPTechnical[] = await ema21Res.json();
       if (ema21Data?.[0]?.ema != null) {
         result.ema21 = ema21Data[0].ema;
+      }
+    }
+
+    // EMA 50
+    if (ema50Res.ok) {
+      const ema50Data: FMPTechnical[] = await ema50Res.json();
+      if (ema50Data?.[0]?.ema != null) {
+        result.ema50 = ema50Data[0].ema;
       }
     }
 

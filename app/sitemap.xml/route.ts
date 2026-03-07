@@ -32,6 +32,7 @@ export function GET() {
     url(`${baseUrl}/tools`, now, "weekly", 0.9),
     url(`${baseUrl}/tools/earnings-call-summarizer`, now, "weekly", 0.8),
     url(`${baseUrl}/tools/sec-filing-translator`, now, "weekly", 0.8),
+    url(`${baseUrl}/tools/stock-sentiment-checker`, now, "weekly", 0.8),
     url(`${baseUrl}/glossary`, now, "weekly", 0.7),
     url(`${baseUrl}/compare`, now, "weekly", 0.7),
     url(`${baseUrl}/earnings`, now, "daily", 0.8),
@@ -41,6 +42,11 @@ export function GET() {
     // Stock pages
     ...sp500Stocks.map((stock) =>
       url(`${baseUrl}/stocks/${tickerToSlug(stock.ticker)}`, now, "daily", 0.8)
+    ),
+
+    // Insider trading pages (programmatic SEO)
+    ...sp500Stocks.map((stock) =>
+      url(`${baseUrl}/stocks/${tickerToSlug(stock.ticker)}/insider-trading`, now, "weekly", 0.7)
     ),
 
     // Sector pages

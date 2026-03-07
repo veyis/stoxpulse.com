@@ -72,6 +72,7 @@ export function Footer() {
               <ul className="space-y-2 mb-6">
                 {[
                   { label: "SEC Form 4 Decoder", href: "/tools/sec-filing-translator" },
+                  { label: "Sentiment Checker", href: "/tools/stock-sentiment-checker" },
                   { label: "Earnings Summarizer", href: "/tools/earnings-call-summarizer" },
                   { label: "View All Tools", href: "/tools" },
                 ].map((link) => (

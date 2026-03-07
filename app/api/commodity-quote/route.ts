@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     if (includeHistory && responses[1]?.ok) {
       const histData: FMPHistorical[] = await responses[1].json();
       if (Array.isArray(histData)) {
-        result.historicalPrices = histData.slice(0, 365).map((d) => ({
+        result.historicalPrices = histData.slice(0, 1400).map((d) => ({
           date: d.date,
           open: d.open,
           high: d.high,

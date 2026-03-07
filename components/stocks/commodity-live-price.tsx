@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PriceChart } from "./price-chart";
+import { PriceChart, type IntradayPrice } from "./price-chart";
 import type { HistoricalPrice } from "@/lib/data/types";
 
 /* ─── Types ────────────────────────────────────────────────── */
@@ -39,11 +39,22 @@ interface CommodityNewsItem {
 
 interface Technicals {
   rsi14?: number;
+  rsi4h?: number;
   sma20?: number;
+  sma50?: number;
+  sma200?: number;
   ema9?: number;
   ema21?: number;
+  ema50?: number;
   otherMetal?: { symbol: string; price: number; change: number; changePercent: number };
   news?: CommodityNewsItem[];
+}
+
+interface MarketContext {
+  currencies?: Record<string, { rate: number; change: number }>;
+  vix?: { price: number; change: number; changePercent: number };
+  spy?: { price: number; change: number; changePercent: number };
+  economicEvents?: { date: string; event: string; estimate: number | null; previous: number | null; actual: number | null; impact: string }[];
 }
 
 interface RelatedETFQuote {
@@ -117,7 +128,9 @@ interface CommodityLivePriceProps {
 export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: CommodityLivePriceProps) {
   const [quote, setQuote] = useState<CommodityQuote | null>(null);
   const [historicalPrices, setHistoricalPrices] = useState<HistoricalPrice[]>([]);
+  const [intradayPrices, setIntradayPrices] = useState<IntradayPrice[]>([]);
   const [technicals, setTechnicals] = useState<Technicals | null>(null);
+  const [context, setContext] = useState<MarketContext | null>(null);
   const [etfQuotes, setEtfQuotes] = useState<RelatedETFQuote[]>([]);
   const [updatedAt, setUpdatedAt] = useState("");
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
@@ -129,9 +142,11 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
 
     async function fetchAll() {
       try {
-        const [quoteRes, techRes, etfResults] = await Promise.all([
+        const [quoteRes, techRes, intradayRes, contextRes, etfResults] = await Promise.all([
           fetch(`/api/commodity-quote?symbol=${symbol}&history=1`),
           fetch(`/api/commodity-technicals?symbol=${symbol}`),
+          fetch(`/api/commodity-intraday?symbol=${symbol}`),
+          fetch(`/api/commodity-context?symbol=${symbol}`),
           Promise.all(
             relatedETFs.map(async (etf) => {
               try {
@@ -157,6 +172,16 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
         if (techRes.ok) {
           const data: Technicals = await techRes.json();
           setTechnicals(data);
+        }
+
+        if (intradayRes.ok) {
+          const data: IntradayPrice[] = await intradayRes.json();
+          if (Array.isArray(data)) setIntradayPrices(data);
+        }
+
+        if (contextRes.ok) {
+          const data: MarketContext = await contextRes.json();
+          setContext(data);
         }
 
         setEtfQuotes(etfResults.filter((r): r is RelatedETFQuote => r !== null));
@@ -304,27 +329,31 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
   const athDistance = quote.high52w > 0 ? ((quote.price - quote.high52w) / quote.high52w) * 100 : null;
   const marketStatus = getMarketStatus();
 
-  // All MA signals (5 indicators)
+  // All MA signals (7 indicators — API-sourced SMA 50/200 preferred over quote data)
   const allMAs = [
     technicals?.ema9 ? { label: "EMA 9", value: technicals.ema9, above: quote.price > technicals.ema9 } : null,
     technicals?.ema21 ? { label: "EMA 21", value: technicals.ema21, above: quote.price > technicals.ema21 } : null,
+    technicals?.ema50 ? { label: "EMA 50", value: technicals.ema50, above: quote.price > technicals.ema50 } : null,
     technicals?.sma20 ? { label: "SMA 20", value: technicals.sma20, above: quote.price > technicals.sma20 } : null,
-    quote.priceAvg50 ? { label: "SMA 50", value: quote.priceAvg50, above: quote.price > quote.priceAvg50 } : null,
-    quote.priceAvg200 ? { label: "SMA 200", value: quote.priceAvg200, above: quote.price > quote.priceAvg200 } : null,
+    (technicals?.sma50 ?? quote.priceAvg50) ? { label: "SMA 50", value: technicals?.sma50 ?? quote.priceAvg50, above: quote.price > (technicals?.sma50 ?? quote.priceAvg50) } : null,
+    (technicals?.sma200 ?? quote.priceAvg200) ? { label: "SMA 200", value: technicals?.sma200 ?? quote.priceAvg200, above: quote.price > (technicals?.sma200 ?? quote.priceAvg200) } : null,
   ].filter(Boolean) as { label: string; value: number; above: boolean }[];
 
   const maBuyCount = allMAs.filter(s => s.above).length;
   const maSellCount = allMAs.filter(s => !s.above).length;
 
-  // RSI
+  // RSI (daily + 4-hour)
   const rsi = technicals?.rsi14;
+  const rsi4h = technicals?.rsi4h;
   const rsiLabel = rsi == null ? null : rsi >= 70 ? "Overbought" : rsi <= 30 ? "Oversold" : "Neutral";
+  const rsi4hLabel = rsi4h == null ? null : rsi4h >= 70 ? "Overbought" : rsi4h <= 30 ? "Oversold" : "Neutral";
 
   // Technical summary score
   let techScore = 0;
   let techSignals = 0;
   for (const ma of allMAs) { techSignals++; techScore += ma.above ? 1 : -1; }
   if (rsi != null) { techSignals++; if (rsi > 70) techScore -= 1; else if (rsi < 30) techScore += 1; }
+  if (rsi4h != null) { techSignals++; if (rsi4h > 70) techScore -= 1; else if (rsi4h < 30) techScore += 1; }
   const techPct = techSignals > 0 ? techScore / techSignals : 0;
   const summaryLabel = techPct >= 0.6 ? "Strong Buy" : techPct >= 0.2 ? "Buy" : techPct <= -0.6 ? "Strong Sell" : techPct <= -0.2 ? "Sell" : "Neutral";
   const summaryColor = summaryLabel.includes("Buy") ? "text-positive" : summaryLabel.includes("Sell") ? "text-negative" : "text-muted-foreground";
@@ -355,7 +384,7 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
               {/* Status row */}
               <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <span className="relative flex h-2 w-2">
-                  <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", marketStatus.open ? "bg-positive" : "bg-muted-foreground/40")} />
+                  {marketStatus.open && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-positive opacity-75" />}
                   <span className={cn("relative inline-flex rounded-full h-2 w-2", marketStatus.open ? "bg-positive" : "bg-muted-foreground/40")} />
                 </span>
                 <span className="text-xs font-medium text-muted-foreground">
@@ -445,9 +474,9 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
               <SummaryGauge score={techScore} maxScore={techSignals} />
               <p className={cn("text-lg font-bold mt-2", summaryColor)}>{summaryLabel}</p>
               <div className="flex items-center gap-3 mt-2 text-[11px]">
-                <span className="text-positive font-medium">{maBuyCount + (rsi != null && rsi < 30 ? 1 : 0)} Buy</span>
-                <span className="text-muted-foreground">{(rsi != null && rsi >= 30 && rsi <= 70 ? 1 : 0)} Neutral</span>
-                <span className="text-negative font-medium">{maSellCount + (rsi != null && rsi > 70 ? 1 : 0)} Sell</span>
+                <span className="text-positive font-medium">{maBuyCount + (rsi != null && rsi < 30 ? 1 : 0) + (rsi4h != null && rsi4h < 30 ? 1 : 0)} Buy</span>
+                <span className="text-muted-foreground">{(rsi != null && rsi >= 30 && rsi <= 70 ? 1 : 0) + (rsi4h != null && rsi4h >= 30 && rsi4h <= 70 ? 1 : 0)} Neutral</span>
+                <span className="text-negative font-medium">{maSellCount + (rsi != null && rsi > 70 ? 1 : 0) + (rsi4h != null && rsi4h > 70 ? 1 : 0)} Sell</span>
               </div>
             </div>
 
@@ -469,6 +498,24 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
                     </span>
                     <span className="text-[10px] text-negative font-medium">Overbought &gt;70</span>
                   </div>
+                  {/* RSI 4-hour */}
+                  {rsi4h != null && (
+                    <div className="mt-4 pt-3 border-t border-border/10">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">RSI 4H (14)</p>
+                      <RSIGauge value={rsi4h} />
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-[10px] text-positive font-medium">Oversold</span>
+                        <span className={cn(
+                          "text-sm font-bold tabular-nums",
+                          rsi4h >= 70 ? "text-negative" : rsi4h <= 30 ? "text-positive" : "text-foreground"
+                        )}>
+                          {rsi4h.toFixed(1)}
+                          <span className="text-xs font-medium text-muted-foreground ml-1">{rsi4hLabel}</span>
+                        </span>
+                        <span className="text-[10px] text-negative font-medium">Overbought</span>
+                      </div>
+                    </div>
+                  )}
                   {/* Bollinger Band context */}
                   {bollingerBands && (
                     <div className="mt-4 pt-3 border-t border-border/10">
@@ -547,7 +594,7 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
 
       {/* ─── PRICE CHART ──────────────────────────────────── */}
       {historicalPrices.length > 0 && (
-        <PriceChart prices={historicalPrices} ticker={symbol} />
+        <PriceChart prices={historicalPrices} ticker={symbol} intradayPrices={intradayPrices.length > 0 ? intradayPrices : undefined} />
       )}
 
       {/* ─── 3-COLUMN: Stats / Performance / Ratio+Units ──── */}
@@ -644,6 +691,135 @@ export function CommodityLivePrice({ symbol, unit, shortName, relatedETFs }: Com
           </div>
         </div>
       </div>
+
+      {/* ─── MARKET CONTEXT (Currencies, VIX, SPY, Events) ── */}
+      {context && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Currency Conversions */}
+          {context.currencies && Object.keys(context.currencies).length > 0 && (
+            <div className="rounded-2xl border border-border/50 bg-card p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <svg className="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+                {shortName} in Other Currencies
+              </h3>
+              <div className="space-y-0">
+                {Object.entries(context.currencies).map(([code, fx]) => {
+                  // EURUSD/GBPUSD: divide. USDJPY/USDCHF: multiply
+                  const converted = (code === "JPY" || code === "CHF")
+                    ? quote.price * fx.rate
+                    : quote.price / fx.rate;
+                  const currencySymbol = code === "EUR" ? "\u20AC" : code === "GBP" ? "\u00A3" : code === "JPY" ? "\u00A5" : code === "CHF" ? "CHF " : "";
+                  return (
+                    <div key={code} className="flex items-center justify-between py-2.5 border-b border-border/10 last:border-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-muted-foreground w-8">{code}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold tabular-nums text-foreground">
+                          {currencySymbol}{converted.toLocaleString("en-US", { minimumFractionDigits: code === "JPY" ? 0 : 2, maximumFractionDigits: code === "JPY" ? 0 : 2 })}
+                        </span>
+                        <span className={cn("text-[10px] font-bold tabular-nums", fx.change >= 0 ? "text-positive" : "text-negative")}>
+                          {fx.change >= 0 ? "+" : ""}{fx.change.toFixed(2)}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground/40 mt-3">FX change = USD pair change, not commodity change</p>
+            </div>
+          )}
+
+          {/* VIX + SPY */}
+          <div className="rounded-2xl border border-border/50 bg-card p-5">
+            <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <svg className="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+              Market Context
+            </h3>
+            <div className="space-y-4">
+              {context.vix && (
+                <div className="p-3 rounded-lg bg-secondary/30">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-muted-foreground">VIX (Fear Index)</span>
+                    <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded",
+                      context.vix.price >= 30 ? "bg-negative/10 text-negative" :
+                      context.vix.price >= 20 ? "bg-warning/10 text-warning" :
+                      "bg-positive/10 text-positive"
+                    )}>
+                      {context.vix.price >= 30 ? "High Fear" : context.vix.price >= 20 ? "Elevated" : "Low Vol"}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-bold font-display tabular-nums">{context.vix.price.toFixed(2)}</span>
+                    <span className={cn("text-xs font-bold tabular-nums", context.vix.changePercent >= 0 ? "text-negative" : "text-positive")}>
+                      {context.vix.changePercent >= 0 ? "+" : ""}{context.vix.changePercent.toFixed(2)}%
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/50 mt-1">High VIX often bullish for {shortName} as safe-haven demand rises</p>
+                </div>
+              )}
+              {context.spy && (
+                <div className="p-3 rounded-lg bg-secondary/30">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-muted-foreground">S&P 500 (SPY)</span>
+                    <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded",
+                      context.spy.changePercent >= 0 ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative"
+                    )}>
+                      {context.spy.changePercent >= 0 ? "Risk-On" : "Risk-Off"}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-bold font-display tabular-nums">${context.spy.price.toFixed(2)}</span>
+                    <span className={cn("text-xs font-bold tabular-nums", context.spy.changePercent >= 0 ? "text-positive" : "text-negative")}>
+                      {context.spy.changePercent >= 0 ? "+" : ""}{context.spy.changePercent.toFixed(2)}%
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/50 mt-1">{shortName} often moves inversely to equities in risk-off environments</p>
+                </div>
+              )}
+              {metalRatio != null && (
+                <div className="flex items-center justify-between py-2 text-xs">
+                  <span className="text-muted-foreground">Gold/Silver Ratio</span>
+                  <span className="font-bold tabular-nums">{metalRatio.toFixed(1)} : 1</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Upcoming Economic Events */}
+          {context.economicEvents && context.economicEvents.length > 0 && (
+            <div className="rounded-2xl border border-border/50 bg-card p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <svg className="size-4 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+                Economic Calendar
+              </h3>
+              <div className="space-y-0 max-h-72 overflow-y-auto">
+                {context.economicEvents.map((evt, i) => (
+                  <div key={i} className="flex items-start gap-3 py-2.5 border-b border-border/10 last:border-0">
+                    <div className="shrink-0 text-center w-11">
+                      <p className="text-[10px] font-bold text-brand">{new Date(evt.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">{evt.event}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={cn("text-[9px] font-bold px-1 py-px rounded",
+                          evt.impact === "High" ? "bg-negative/10 text-negative" : "bg-warning/10 text-warning"
+                        )}>{evt.impact}</span>
+                        {evt.estimate != null && (
+                          <span className="text-[10px] text-muted-foreground tabular-nums">Est: {evt.estimate}</span>
+                        )}
+                        {evt.previous != null && (
+                          <span className="text-[10px] text-muted-foreground/50 tabular-nums">Prev: {evt.previous}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ─── LATEST NEWS (Featured Layout) ─────────────────── */}
       {technicals?.news && technicals.news.length > 0 && (

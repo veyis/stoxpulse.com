@@ -19,21 +19,34 @@ import { cn } from "@/lib/utils";
 import type { HistoricalPrice } from "@/lib/data/types";
 import type { StockQuote } from "@/lib/types/stock";
 
-type TimeRange = "1M" | "3M" | "6M" | "1Y" | "ALL";
+type TimeRange = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "5Y" | "ALL";
 type ChartType = "candle" | "area";
+
+export interface IntradayPrice {
+  date: string; // "2026-03-06 16:00:00"
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
 
 interface PriceChartProps {
   prices: HistoricalPrice[];
   ticker: string;
   quote?: StockQuote | null;
   className?: string;
+  intradayPrices?: IntradayPrice[];
 }
 
 const RANGE_DAYS: Record<TimeRange, number> = {
+  "1D": 1,
+  "1W": 7,
   "1M": 22,
   "3M": 66,
   "6M": 132,
   "1Y": 252,
+  "5Y": 1300,
   ALL: 9999,
 };
 
@@ -46,7 +59,15 @@ function formatNum(v: number | undefined | null): string {
   return v != null ? v.toFixed(2) : "—";
 }
 
-export function PriceChart({ prices, ticker, quote, className }: PriceChartProps) {
+function toTime(dateStr: string): Time {
+  // Intraday dates have a space: "2026-03-06 16:00:00"
+  if (dateStr.includes(" ")) {
+    return Math.floor(new Date(dateStr.replace(" ", "T") + "Z").getTime() / 1000) as Time;
+  }
+  return dateStr as Time;
+}
+
+export function PriceChart({ prices, ticker, quote, className, intradayPrices }: PriceChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
@@ -63,8 +84,28 @@ export function PriceChart({ prices, ticker, quote, className }: PriceChartProps
     changePercent: number;
   } | null>(null);
 
+  // Is this an intraday timeframe?
+  const isIntraday = range === "1D" || range === "1W";
+
   // Memoize filtered data — shared between render and effect
   const filteredData = useMemo(() => {
+    // Intraday: use intradayPrices (1-hour candles)
+    if (isIntraday && intradayPrices && intradayPrices.length > 0) {
+      const sorted = [...intradayPrices].sort((a, b) => a.date.localeCompare(b.date));
+      if (range === "1D") {
+        // Last 24 bars (24 hours)
+        return sorted.slice(-24).map((p) => ({
+          ...p,
+          _intraday: true as const,
+        }));
+      }
+      // 1W: last ~120 bars (5 trading days × 24 hours)
+      return sorted.slice(-168).map((p) => ({
+        ...p,
+        _intraday: true as const,
+      }));
+    }
+
     const days = RANGE_DAYS[range];
     const sliced = [...prices]
       .slice(0, Math.min(days, prices.length))
@@ -75,7 +116,6 @@ export function PriceChart({ prices, ticker, quote, className }: PriceChartProps
       const today = new Date().toISOString().split("T")[0];
       const lastDate = sliced[sliced.length - 1].date;
       const lastClose = sliced[sliced.length - 1].close;
-      // Only add today if: date is different AND price has moved from last close (market is open)
       const hasIntradayActivity = quote.open != null && Math.abs(quote.price - lastClose) > 0.001;
       if (lastDate !== today && hasIntradayActivity) {
         sliced.push({
@@ -90,7 +130,7 @@ export function PriceChart({ prices, ticker, quote, className }: PriceChartProps
     }
 
     return sliced;
-  }, [prices, range, quote]);
+  }, [prices, range, quote, isIntraday, intradayPrices]);
 
   // Check if data has OHLC — if not, force area chart
   const hasOHLC = useMemo(
@@ -157,7 +197,7 @@ export function PriceChart({ prices, ticker, quote, className }: PriceChartProps
       },
       timeScale: {
         borderColor,
-        timeVisible: false,
+        timeVisible: isIntraday,
         fixLeftEdge: true,
         fixRightEdge: true,
       },
@@ -181,7 +221,7 @@ export function PriceChart({ prices, ticker, quote, className }: PriceChartProps
       const candleData: CandlestickData[] = data
         .filter((p) => p.open != null && p.high != null && p.low != null)
         .map((p) => ({
-          time: p.date as Time,
+          time: toTime(p.date),
           open: p.open!,
           high: p.high!,
           low: p.low!,
@@ -204,7 +244,7 @@ export function PriceChart({ prices, ticker, quote, className }: PriceChartProps
       });
 
       const areaData: AreaData[] = data.map((p) => ({
-        time: p.date as Time,
+        time: toTime(p.date),
         value: p.close,
       }));
 
@@ -225,7 +265,7 @@ export function PriceChart({ prices, ticker, quote, className }: PriceChartProps
       const prevClose = i > 0 ? data[i - 1].close : p.close;
       const isUp = p.close >= prevClose;
       return {
-        time: p.date as Time,
+        time: toTime(p.date),
         value: p.volume,
         color: isUp ? volUpColor : volDownColor,
       };
@@ -259,8 +299,11 @@ export function PriceChart({ prices, ticker, quote, className }: PriceChartProps
         return;
       }
 
-      const dateStr = String(param.time);
-      const idx = data.findIndex((p) => p.date === dateStr);
+      const paramTime = param.time;
+      const idx = data.findIndex((p) => {
+        const t = toTime(p.date);
+        return t === paramTime || String(t) === String(paramTime);
+      });
       if (idx === -1) return;
 
       const matchPrice = data[idx];
@@ -284,7 +327,7 @@ export function PriceChart({ prices, ticker, quote, className }: PriceChartProps
       chart.remove();
       chartRef.current = null;
     };
-  }, [filteredData, effectiveChartType]);
+  }, [filteredData, effectiveChartType, isIntraday]);
 
   if (filteredData.length < 2) return null;
 
@@ -380,7 +423,10 @@ export function PriceChart({ prices, ticker, quote, className }: PriceChartProps
 
           {/* Time range selector */}
           <div className="flex items-center gap-0.5 rounded-lg bg-secondary/50 p-0.5">
-            {(["1M", "3M", "6M", "1Y", "ALL"] as const).map((r) => (
+            {(intradayPrices && intradayPrices.length > 0
+              ? (["1D", "1W", "1M", "3M", "6M", "1Y", "5Y", "ALL"] as const)
+              : (["1M", "3M", "6M", "1Y", "ALL"] as const)
+            ).map((r) => (
               <button
                 key={r}
                 onClick={() => setRange(r)}

@@ -16,20 +16,21 @@ import { getCached, setCache } from "../cache";
 const { baseUrl, apiKey } = dataConfig.fmp;
 
 async function fmpFetch<T>(endpoint: string, params: Record<string, string> = {}): Promise<T | null> {
-  if (!isProviderEnabled("fmp")) return null;
+  // Read API key at call time, not module load time (important for serverless)
+  const runtimeKey = process.env.FMP_API_KEY ?? "";
+  if (!runtimeKey) return null;
 
   const url = new URL(`${baseUrl}${endpoint}`);
-  url.searchParams.set("apikey", apiKey);
-  for (const [key, val] of Object.entries(params)) {
-    url.searchParams.set(key, val);
+  url.searchParams.set("apikey", runtimeKey);
+  for (const [k, val] of Object.entries(params)) {
+    url.searchParams.set(k, val);
   }
 
   try {
     const res = await fetch(url.toString(), {
-      next: { revalidate: 3600 },
+      cache: "no-store",
     });
     if (!res.ok) {
-      // 404 = endpoint not available on current plan, not an error
       if (res.status !== 400 && res.status !== 402 && res.status !== 404) console.error(`FMP ${endpoint}: ${res.status}`);
       return null;
     }

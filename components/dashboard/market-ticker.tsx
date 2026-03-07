@@ -63,8 +63,11 @@ export function MarketTicker() {
     };
   }, []);
 
+  // Commodities/forex symbols that don't have stock pages
+  const nonStockSymbols = new Set(["XAUUSD", "XAGUSD"]);
+
   function handleNavigate(symbol: string) {
-    // Convert to slug format (lowercase, dots to hyphens) to match stock page routes
+    if (nonStockSymbols.has(symbol)) return;
     const slug = symbol.toLowerCase().replace(/\./g, "-");
     router.push(`/stocks/${slug}`);
   }

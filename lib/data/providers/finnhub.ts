@@ -22,7 +22,7 @@ async function finnhubFetch<T>(endpoint: string, params: Record<string, string> 
 
   try {
     const res = await fetch(url.toString(), {
-      next: { revalidate: 900 }, // 15 min ISR
+      cache: "no-store",
     });
     if (!res.ok) {
       console.error(`Finnhub ${endpoint}: ${res.status}`);

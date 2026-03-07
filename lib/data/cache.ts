@@ -39,14 +39,18 @@ export async function getCached<T>(key: string): Promise<T | null> {
 }
 
 export async function setCache<T>(key: string, data: T, ttlSeconds: number): Promise<void> {
-  await ensureCacheDir();
-  const entry: CacheEntry<T> = {
-    data,
-    timestamp: Date.now(),
-    ttl: ttlSeconds,
-  };
-  const filePath = getCachePath(key);
-  await writeFile(filePath, JSON.stringify(entry), "utf-8");
+  try {
+    await ensureCacheDir();
+    const entry: CacheEntry<T> = {
+      data,
+      timestamp: Date.now(),
+      ttl: ttlSeconds,
+    };
+    const filePath = getCachePath(key);
+    await writeFile(filePath, JSON.stringify(entry), "utf-8");
+  } catch {
+    // Silently ignore — filesystem may be read-only (e.g. Vercel serverless)
+  }
 }
 
 export async function invalidateCache(key: string): Promise<void> {

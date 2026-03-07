@@ -415,21 +415,17 @@ function CommodityPage({ commodity }: { commodity: CommodityInfo }) {
           </nav>
 
           {/* Header */}
-          <header className="mb-6 sm:mb-8">
-            <div className="space-y-4">
-              <div>
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold font-display tracking-tight">
-                  {commodity.name}
-                </h1>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge variant="secondary" className="text-xs font-mono font-bold px-2.5 py-0.5">
-                    {commodity.symbol}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs px-2.5 py-0.5">Commodity</Badge>
-                  <Badge variant="outline" className="text-xs px-2.5 py-0.5">{commodity.unit}</Badge>
-                </div>
+          <header className="mb-5 sm:mb-6">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold font-display tracking-tight">
+                {commodity.name}
+              </h1>
+              <div className="flex items-center gap-1.5">
+                <Badge variant="secondary" className="text-[11px] font-mono font-bold px-2 py-0.5">
+                  {commodity.symbol}
+                </Badge>
+                <Badge variant="outline" className="text-[11px] px-2 py-0.5">Commodity</Badge>
               </div>
-
             </div>
           </header>
 
@@ -438,39 +434,43 @@ function CommodityPage({ commodity }: { commodity: CommodityInfo }) {
             <CommodityLivePrice
               symbol={commodity.symbol}
               unit={commodity.unit}
+              shortName={commodity.shortName}
               relatedETFs={commodity.relatedETFs}
             />
           </section>
 
-          {/* About */}
-          <section className="mb-8">
-            <div className="rounded-lg border border-border/50 bg-card p-6">
-              <h2 className="font-display text-lg font-bold text-foreground mb-3">
-                About {commodity.shortName}
-              </h2>
-              <p className="text-[15px] text-muted-foreground leading-relaxed">
-                {commodity.description}
-              </p>
-            </div>
-          </section>
-
-          {/* Price Drivers */}
-          <section className="mb-8">
-            <div className="rounded-lg border border-border/50 bg-card p-6">
-              <h2 className="font-display text-lg font-bold text-foreground mb-4">
-                <TrendingUp className="inline size-5 mr-2 text-brand" />
-                What Moves {commodity.shortName} Prices
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {commodity.factors.map((factor) => (
-                  <div key={factor} className="flex items-start gap-2.5">
-                    <div className="mt-1.5 size-1.5 rounded-full bg-brand shrink-0" />
-                    <span className="text-sm text-muted-foreground">{factor}</span>
-                  </div>
-                ))}
+          {/* About + Price Drivers side by side on desktop */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* About */}
+            <section>
+              <div className="rounded-2xl border border-border/50 bg-card p-6 h-full">
+                <h2 className="font-display text-lg font-bold text-foreground mb-3">
+                  About {commodity.shortName}
+                </h2>
+                <p className="text-[15px] text-muted-foreground leading-relaxed">
+                  {commodity.description}
+                </p>
               </div>
-            </div>
-          </section>
+            </section>
+
+            {/* Price Drivers */}
+            <section>
+              <div className="rounded-2xl border border-border/50 bg-card p-6 h-full">
+                <h2 className="font-display text-lg font-bold text-foreground mb-4">
+                  <TrendingUp className="inline size-5 mr-2 text-brand" />
+                  What Moves {commodity.shortName} Prices
+                </h2>
+                <div className="space-y-2.5">
+                  {commodity.factors.map((factor) => (
+                    <div key={factor} className="flex items-start gap-2.5">
+                      <div className="mt-1.5 size-1.5 rounded-full bg-brand shrink-0" />
+                      <span className="text-sm text-muted-foreground">{factor}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          </div>
 
           {/* FAQ */}
           <section className="mb-12">

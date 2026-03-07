@@ -51,6 +51,14 @@ export const metadata: Metadata = {
     url: "https://stoxpulse.com",
     siteName: "StoxPulse",
     locale: "en_US",
+    images: [
+      {
+        url: "/images/og/brand.png",
+        width: 1200,
+        height: 630,
+        alt: "StoxPulse — AI Stock Intelligence Dashboard",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
@@ -58,6 +66,7 @@ export const metadata: Metadata = {
     description:
       "The research analyst serious investors wish they could afford. AI-powered earnings call analysis, SEC filing intelligence, and news sentiment scoring.",
     creator: "@stoxpulse",
+    images: ["/images/og/brand.png"],
   },
   alternates: {
     canonical: "https://stoxpulse.com",
@@ -85,7 +94,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth" suppressHydrationWarning>
+    <html lang="en" className="dark scroll-smooth" suppressHydrationWarning>
       <head>
         {/* GA4 */}
         <Script

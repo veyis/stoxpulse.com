@@ -14,6 +14,8 @@ import {
   getRecommendations,
   getAnalystEstimates,
   getEarningsCalendar,
+  getPriceTargets,
+  getUpgradesDowngrades,
 } from "@/lib/data";
 
 export async function GET(request: Request) {
@@ -25,27 +27,36 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Fetch all data sources in parallel
+    // Fetch all data sources in parallel — now includes price targets & upgrades
     const today = new Date();
     const nextWeek = new Date(today);
     nextWeek.setDate(nextWeek.getDate() + 7);
 
-    const [quote, profile, financials, balanceSheet, cashFlow, ratios, filings, insiderTrades, news, historicalPrices, recommendations, analystEstimates, earningsCalendar] =
-      await Promise.all([
-        getQuote(ticker).catch(() => null),
-        getProfile(ticker).catch(() => null),
-        getFinancials(ticker).catch(() => null),
-        getBalanceSheet(ticker).catch(() => null),
-        getCashFlow(ticker).catch(() => null),
-        getRatios(ticker).catch(() => null),
-        getFilings(ticker, 20).catch(() => []),
-        getInsiderTrades(ticker, 15).catch(() => []),
-        getNews(ticker, 15).catch(() => []),
-        getHistoricalPrices(ticker).catch(() => []),
-        getRecommendations(ticker).catch(() => []),
-        getAnalystEstimates(ticker).catch(() => []),
-        getEarningsCalendar(today.toISOString().split("T")[0], nextWeek.toISOString().split("T")[0]).catch(() => []),
-      ]);
+    const [
+      quote, profile, financials, balanceSheet, cashFlow, ratios,
+      filings, insiderTrades, news, historicalPrices,
+      recommendations, analystEstimates, earningsCalendar,
+      priceTargets, upgradesDowngrades,
+    ] = await Promise.all([
+      getQuote(ticker).catch(() => null),
+      getProfile(ticker).catch(() => null),
+      getFinancials(ticker).catch(() => null),
+      getBalanceSheet(ticker).catch(() => null),
+      getCashFlow(ticker).catch(() => null),
+      getRatios(ticker).catch(() => null),
+      getFilings(ticker, 20).catch(() => []),
+      getInsiderTrades(ticker, 15).catch(() => []),
+      getNews(ticker, 15).catch(() => []),
+      getHistoricalPrices(ticker).catch(() => []),
+      getRecommendations(ticker).catch(() => []),
+      getAnalystEstimates(ticker).catch(() => []),
+      getEarningsCalendar(
+        today.toISOString().split("T")[0],
+        nextWeek.toISOString().split("T")[0]
+      ).catch(() => []),
+      getPriceTargets(ticker).catch(() => []),
+      getUpgradesDowngrades(ticker).catch(() => []),
+    ]);
 
     const aiAnalysis = await generateAISignals({
       ticker,
@@ -62,6 +73,8 @@ export async function GET(request: Request) {
       historicalPrices,
       recommendations,
       analystEstimates,
+      priceTargets,
+      upgradesDowngrades,
     });
 
     if (!aiAnalysis) {

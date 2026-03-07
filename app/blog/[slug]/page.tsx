@@ -6,6 +6,8 @@ import { Footer } from "@/components/landing/footer";
 import { getAllPosts, getPostBySlug, getPostsByCluster } from "@/data/blog/posts";
 import { ChevronRight, Clock, ArrowRight, ArrowLeft, User } from "lucide-react";
 
+import { authors } from "@/data/blog/authors";
+
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
@@ -38,6 +40,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
+function ToolLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center gap-3 rounded-xl border border-border/50 bg-background px-4 py-3 hover:border-brand/30 transition-all"
+    >
+      <span className="font-semibold text-sm text-foreground group-hover:text-brand transition-colors flex-1">
+        {label}
+      </span>
+      <ArrowRight className="size-4 text-muted-foreground/30 group-hover:text-brand transition-all" />
+    </Link>
+  );
+}
+
 export default async function BlogPostPage({ params }: PageProps) {
   const { slug } = await params;
   const post = getPostBySlug(slug);
@@ -45,6 +61,8 @@ export default async function BlogPostPage({ params }: PageProps) {
   if (!post) {
     notFound();
   }
+
+  const authorData = authors[post.author];
 
   const relatedPosts = getPostsByCluster(post.cluster).filter(
     (p) => p.slug !== post.slug
@@ -74,9 +92,11 @@ export default async function BlogPostPage({ params }: PageProps) {
     datePublished: post.date,
     dateModified: post.updated,
     author: {
-      "@type": "Organization",
+      "@type": "Person",
       name: post.author,
-      url: "https://stoxpulse.com",
+      jobTitle: authorData?.role,
+      description: authorData?.bio,
+      url: authorData?.twitter || "https://stoxpulse.com",
     },
     publisher: {
       "@type": "Organization",
@@ -182,7 +202,7 @@ export default async function BlogPostPage({ params }: PageProps) {
                 <Clock className="size-3.5" />
                 {post.readTime}
               </span>
-              {post.updated !== post.date && (
+              {post.updated && post.updated !== post.date && (
                 <span className="text-xs">
                   Updated:{" "}
                   {new Date(post.updated).toLocaleDateString("en-US", {
@@ -214,39 +234,47 @@ export default async function BlogPostPage({ params }: PageProps) {
             </h3>
             <div className="grid gap-3 sm:grid-cols-2">
               {(post.cluster === "sec-filings" || post.cluster === "earnings") && (
-                <Link
-                  href="/tools/sec-filing-translator"
-                  className="group flex items-center gap-3 rounded-xl border border-border/50 bg-background px-4 py-3 hover:border-brand/30 transition-all"
-                >
-                  <span className="font-semibold text-sm text-foreground group-hover:text-brand transition-colors flex-1">SEC Form 4 Decoder</span>
-                  <ArrowRight className="size-4 text-muted-foreground/30 group-hover:text-brand transition-all" />
-                </Link>
+                <ToolLink href="/tools/sec-filing-translator" label="SEC Form 4 Decoder" />
               )}
-              <Link
-                href="/tools/stock-sentiment-checker"
-                className="group flex items-center gap-3 rounded-xl border border-border/50 bg-background px-4 py-3 hover:border-brand/30 transition-all"
-              >
-                <span className="font-semibold text-sm text-foreground group-hover:text-brand transition-colors flex-1">Stock Sentiment Checker</span>
-                <ArrowRight className="size-4 text-muted-foreground/30 group-hover:text-brand transition-all" />
-              </Link>
               {(post.cluster === "earnings" || post.cluster === "ai-investing") && (
-                <Link
-                  href="/tools/earnings-call-summarizer"
-                  className="group flex items-center gap-3 rounded-xl border border-border/50 bg-background px-4 py-3 hover:border-brand/30 transition-all"
-                >
-                  <span className="font-semibold text-sm text-foreground group-hover:text-brand transition-colors flex-1">Earnings Call Summarizer</span>
-                  <ArrowRight className="size-4 text-muted-foreground/30 group-hover:text-brand transition-all" />
-                </Link>
+                <ToolLink href="/tools/earnings-call-summarizer" label="Earnings Call Summarizer" />
               )}
-              <Link
-                href="/stocks"
-                className="group flex items-center gap-3 rounded-xl border border-border/50 bg-background px-4 py-3 hover:border-brand/30 transition-all"
-              >
-                <span className="font-semibold text-sm text-foreground group-hover:text-brand transition-colors flex-1">Browse S&amp;P 500 Stocks</span>
-                <ArrowRight className="size-4 text-muted-foreground/30 group-hover:text-brand transition-all" />
-              </Link>
+              {(post.cluster === "fundamentals" || post.cluster === "portfolio-strategy") && (
+                <ToolLink href="/tools/stock-screener" label="Stock Screener" />
+              )}
+              {(post.cluster === "fundamentals") && (
+                <ToolLink href="/tools/dcf-calculator" label="DCF Valuation Calculator" />
+              )}
+              {(post.cluster === "portfolio-strategy" || post.cluster === "market-mechanics") && (
+                <ToolLink href="/tools/portfolio-risk-scanner" label="Portfolio Risk Scanner" />
+              )}
+              {(post.cluster === "technical-analysis") && (
+                <ToolLink href="/signals" label="AI Stock Signals" />
+              )}
+              {(post.cluster === "derivatives" || post.cluster === "fixed-income" || post.cluster === "macroeconomics") && (
+                <ToolLink href="/tools/dividend-calculator" label="Dividend Calculator" />
+              )}
+              <ToolLink href="/tools/stock-sentiment-checker" label="Stock Sentiment Checker" />
+              <ToolLink href="/stocks" label="Browse S&amp;P 500 Stocks" />
             </div>
           </div>
+
+          {/* Author Bio Section */}
+          {authorData && (
+            <div className="mt-12 p-8 rounded-2xl border border-border bg-surface-1/40 flex flex-col sm:flex-row items-center sm:items-start gap-6">
+              <div className="size-16 rounded-full bg-brand/10 border border-brand/20 flex items-center justify-center shrink-0">
+                <User className="size-8 text-brand" />
+              </div>
+              <div className="text-center sm:text-left">
+                <p className="text-xs font-bold text-brand uppercase tracking-widest mb-1">About the Author</p>
+                <h3 className="text-xl font-bold text-foreground mb-2">{authorData.name}</h3>
+                <p className="text-sm text-muted-foreground font-medium mb-3">{authorData.role}</p>
+                <p className="text-[15px] text-muted-foreground leading-relaxed">
+                  {authorData.bio}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Tags */}
           <div className="mt-12 pt-8 border-t border-border">

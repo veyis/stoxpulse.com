@@ -116,7 +116,7 @@ export interface BlogPost {
   slug: string;
   description: string;
   date: string;
-  updated: string;
+  updated?: string;
   author: string;
   category: string;
   tags: string[];

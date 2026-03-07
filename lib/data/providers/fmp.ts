@@ -7,8 +7,15 @@ import type {
   FinancialRatios,
   NewsItem,
   EarningsCalendarEntry,
+  EarningsTranscript,
   HistoricalPrice,
   AnalystEstimate,
+  InsiderTrade,
+  PriceTarget,
+  UpgradeDowngrade,
+  EarningsSurprise,
+  StockPeer,
+  DCFValuation,
 } from "../types";
 import { dataConfig, isProviderEnabled } from "../config";
 import { getCached, setCache } from "../cache";
@@ -602,5 +609,217 @@ export const fmpProvider: DataProvider = {
 
     await setCache(cacheKey, calendar, dataConfig.cache.ttl.calendar);
     return calendar;
+  },
+
+  async getTranscript(ticker: string, quarter: number, year: number): Promise<EarningsTranscript | null> {
+    const cacheKey = `fmp_transcript_${ticker}_${quarter}_${year}`;
+    const cached = await getCached<EarningsTranscript>(cacheKey);
+    if (cached) return cached;
+
+    const data = await fmpFetch<Array<{
+      symbol: string;
+      quarter: number;
+      year: number;
+      date: string;
+      content: string;
+    }>>("/earning-call-transcript", { symbol: ticker, quarter: String(quarter), year: String(year) });
+
+    if (!data?.[0]) return null;
+
+    const t = data[0];
+    const transcript: EarningsTranscript = {
+      ticker: t.symbol,
+      quarter: t.quarter,
+      year: t.year,
+      date: t.date,
+      content: t.content,
+    };
+
+    await setCache(cacheKey, transcript, dataConfig.cache.ttl.financials);
+    return transcript;
+  },
+
+  async getInsiderTrading(ticker: string, limit = 20): Promise<InsiderTrade[]> {
+    const cacheKey = `fmp_insider_${ticker}_${limit}`;
+    const cached = await getCached<InsiderTrade[]>(cacheKey);
+    if (cached) return cached;
+
+    const data = await fmpFetch<Array<{
+      symbol: string;
+      reportingName: string;
+      typeOfOwner: string;
+      acquistionOrDisposition: string;
+      securitiesTransacted: number;
+      price: number;
+      transactionDate: string;
+      filingDate: string;
+    }>>("/insider-trading", { symbol: ticker, limit: String(limit) });
+
+    if (!data) return [];
+
+    const trades: InsiderTrade[] = data.map((t) => ({
+      ticker: t.symbol,
+      name: t.reportingName,
+      title: t.typeOfOwner,
+      type: (t.acquistionOrDisposition === "A" ? "Buy" : "Sale") as "Buy" | "Sale",
+      transactionType: (t.acquistionOrDisposition === "A" ? "Buy" : "Sell") as InsiderTrade["transactionType"],
+      shares: Math.abs(t.securitiesTransacted),
+      pricePerShare: t.price || 0,
+      totalValue: Math.abs(t.securitiesTransacted * (t.price || 0)),
+      date: t.transactionDate,
+      filingDate: t.filingDate,
+      isRoutine: false, // FMP doesn't indicate 10b5-1 plans
+    }));
+
+    await setCache(cacheKey, trades, dataConfig.cache.ttl.insiderTrades);
+    return trades;
+  },
+
+  async getPriceTargets(ticker: string): Promise<PriceTarget[]> {
+    const cacheKey = `fmp_pt_${ticker}`;
+    const cached = await getCached<PriceTarget[]>(cacheKey);
+    if (cached) return cached;
+
+    const data = await fmpFetch<Array<{
+      symbol: string;
+      analystName: string;
+      analystCompany: string;
+      adjPriceTarget: number;
+      priceWhenPosted: number;
+      newsTitle: string;
+      publishedDate: string;
+    }>>("/price-target", { symbol: ticker });
+
+    if (!data) return [];
+
+    const targets: PriceTarget[] = data.slice(0, 20).map((t) => ({
+      ticker: t.symbol,
+      analystName: t.analystName,
+      analystCompany: t.analystCompany,
+      targetPrice: t.adjPriceTarget,
+      priceWhenPosted: t.priceWhenPosted,
+      action: t.newsTitle,
+      ratingCurrent: "",
+      date: t.publishedDate,
+    }));
+
+    await setCache(cacheKey, targets, dataConfig.cache.ttl.financials);
+    return targets;
+  },
+
+  async getUpgradesDowngrades(ticker: string): Promise<UpgradeDowngrade[]> {
+    const cacheKey = `fmp_upgrades_${ticker}`;
+    const cached = await getCached<UpgradeDowngrade[]>(cacheKey);
+    if (cached) return cached;
+
+    const data = await fmpFetch<Array<{
+      symbol: string;
+      gradingCompany: string;
+      action: string;
+      previousGrade: string;
+      newGrade: string;
+      priceTargetPrevious: number | null;
+      priceTargetCurrent: number | null;
+      publishedDate: string;
+    }>>("/upgrades-downgrades", { symbol: ticker });
+
+    if (!data) return [];
+
+    const grades: UpgradeDowngrade[] = data.slice(0, 20).map((g) => ({
+      ticker: g.symbol,
+      analystCompany: g.gradingCompany,
+      action: g.action?.toLowerCase() ?? "",
+      ratingFrom: g.previousGrade ?? "",
+      ratingTo: g.newGrade ?? "",
+      priceTargetFrom: g.priceTargetPrevious,
+      priceTargetTo: g.priceTargetCurrent,
+      date: g.publishedDate,
+    }));
+
+    await setCache(cacheKey, grades, dataConfig.cache.ttl.financials);
+    return grades;
+  },
+
+  async getEarningsSurprises(ticker: string): Promise<EarningsSurprise[]> {
+    const cacheKey = `fmp_surprises_${ticker}`;
+    const cached = await getCached<EarningsSurprise[]>(cacheKey);
+    if (cached) return cached;
+
+    const data = await fmpFetch<Array<{
+      symbol: string;
+      date: string;
+      estimatedEarning: number | null;
+      actualEarningResult: number | null;
+      estimatedRevenue: number | null;
+      actualRevenue: number | null;
+    }>>("/earnings-surprises", { symbol: ticker });
+
+    if (!data) return [];
+
+    const surprises: EarningsSurprise[] = data.slice(0, 16).map((s) => ({
+      ticker: s.symbol,
+      date: s.date,
+      epsEstimate: s.estimatedEarning,
+      epsActual: s.actualEarningResult,
+      epsSurprise: s.estimatedEarning != null && s.actualEarningResult != null
+        ? s.actualEarningResult - s.estimatedEarning
+        : null,
+      epsSurprisePercent: s.estimatedEarning != null && s.actualEarningResult != null && s.estimatedEarning !== 0
+        ? ((s.actualEarningResult - s.estimatedEarning) / Math.abs(s.estimatedEarning)) * 100
+        : null,
+      revenueEstimate: s.estimatedRevenue,
+      revenueActual: s.actualRevenue,
+      revenueSurprise: s.estimatedRevenue != null && s.actualRevenue != null
+        ? s.actualRevenue - s.estimatedRevenue
+        : null,
+    }));
+
+    await setCache(cacheKey, surprises, dataConfig.cache.ttl.financials);
+    return surprises;
+  },
+
+  async getPeers(ticker: string): Promise<StockPeer[]> {
+    const cacheKey = `fmp_peers_${ticker}`;
+    const cached = await getCached<StockPeer[]>(cacheKey);
+    if (cached) return cached;
+
+    const data = await fmpFetch<string[]>("/stock-peers", { symbol: ticker });
+
+    if (!data || !Array.isArray(data)) return [];
+
+    // FMP returns array of ticker strings
+    const peers: StockPeer[] = (Array.isArray(data[0]) ? data[0] : data)
+      .filter((t: string) => t !== ticker)
+      .slice(0, 10)
+      .map((t: string) => ({ ticker: t }));
+
+    await setCache(cacheKey, peers, dataConfig.cache.ttl.profile);
+    return peers;
+  },
+
+  async getDCF(ticker: string): Promise<DCFValuation | null> {
+    const cacheKey = `fmp_dcf_${ticker}`;
+    const cached = await getCached<DCFValuation>(cacheKey);
+    if (cached) return cached;
+
+    const data = await fmpFetch<Array<{
+      symbol: string;
+      dcf: number;
+      "Stock Price": number;
+      date: string;
+    }>>("/discounted-cash-flow", { symbol: ticker });
+
+    if (!data?.[0]) return null;
+
+    const d = data[0];
+    const dcf: DCFValuation = {
+      ticker: d.symbol,
+      dcf: d.dcf,
+      price: d["Stock Price"],
+      date: d.date,
+    };
+
+    await setCache(cacheKey, dcf, dataConfig.cache.ttl.financials);
+    return dcf;
   },
 };

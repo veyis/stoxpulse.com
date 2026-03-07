@@ -68,6 +68,9 @@ export default function SecFilingTranslatorPage() {
           <h1 className="font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl mb-6">
             Understand Insider Trades in <span className="text-brand">Seconds</span>
           </h1>
+          <p className="-mt-6 mb-6 text-[11px] text-muted-foreground/60 uppercase tracking-wider font-medium">
+            Powered by StoxPulse AI
+          </p>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             Stop trying to read confusing SEC XML tables. Paste any Form 4 link below, and our AI will translate it into a simple, actionable summary.
           </p>

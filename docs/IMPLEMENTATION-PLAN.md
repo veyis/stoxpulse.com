@@ -215,7 +215,7 @@ Create: app/api/inngest/route.ts       — Inngest webhook handler
 
 ```typescript
 // 1. Daily Quote Refresh (every trading day at 4:30 PM ET)
-// Fetches closing prices for all 50 tracked stocks
+// Fetches closing prices for all 500+ tracked stocks
 // Stores in .cache/ with 24hr TTL
 "stoxpulse/quotes.refresh"
 
@@ -225,7 +225,7 @@ Create: app/api/inngest/route.ts       — Inngest webhook handler
 "stoxpulse/earnings.sync"
 
 // 3. News Aggregation (every 2 hours during market hours)
-// Fetches news for top 50 stocks
+// Fetches news for top 500+ stocks
 // AI scores each article for importance (1-10)
 // Stores scored news in cache
 "stoxpulse/news.aggregate"
@@ -543,7 +543,7 @@ lib/inngest/functions.ts — Enhanced filing monitor:
   - Runs every 15 minutes during market hours (9:30-6 PM ET)
   - Runs every 60 minutes outside hours
   - Checks EDGAR RSS feed for new filings
-  - For tracked tickers: 50 stocks + any in user watchlists
+  - For tracked tickers: 500+ stocks + any in user watchlists
   - On new filing detected:
     -> Classify: 8-K (material event), 10-K/10-Q (periodic), Form 4 (insider)
     -> Trigger appropriate analysis job
@@ -786,8 +786,8 @@ UI: components/earnings/promise-tracker.tsx (already planned in C1)
 ### D1. Expand Stock Universe (Day 34-36)
 
 ```
-Current: 50 stocks in data/stocks/sp500.ts
-Target: Full S&P 500 (503 stocks)
+Current: 503 stocks in data/stocks/sp500.ts (full S&P 500)
+Target: Already at full S&P 500 (503 stocks)
 
 data/stocks/sp500-full.ts
   - All 503 current S&P 500 constituents
@@ -796,7 +796,7 @@ data/stocks/sp500-full.ts
   - Helper functions: getStockByTicker, getStocksBySector, searchStocks
 
 Impact:
-  - 503 stock pages (from 50)
+  - 503 stock pages (already built)
   - 503 earnings history pages
   - 503 insider trading pages
   - ~1,500 new indexable pages
@@ -1000,7 +1000,7 @@ Week 7 (Day 44-50): Phase D4-D6
 | Watchlist users | 0 | 100+ | 500+ | 2,000+ |
 | Email subscribers | 0 | 0 | 200+ | 1,000+ |
 | Avg time on site | ~1 min | 3 min | 5 min | 7 min |
-| Stock coverage | 50 | 50 | 50 | 503 |
+| Stock coverage | 503 | 503 | 503 | 503 |
 | Blog posts | 6 | 6 | 10 | 30+ |
 | Glossary terms | 20 | 20 | 20 | 100+ |
 

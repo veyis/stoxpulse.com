@@ -32,7 +32,7 @@ import { FilingsList } from "./filings-list";
 import { InsiderTable } from "./insider-table";
 import { NewsList } from "./news-list";
 import { FiftyTwoWeekBar } from "./fifty-two-week-bar";
-import { PriceChart } from "./price-chart";
+import { PriceChart, type EarningsEvent, type InsiderEvent } from "./price-chart";
 import { AIInsightCard } from "./ai-insight-card";
 import {
   Building2,
@@ -55,6 +55,11 @@ import type {
   HistoricalPrice,
   AnalystRecommendation,
   AnalystEstimate,
+  PriceTarget,
+  UpgradeDowngrade,
+  EarningsSurprise,
+  StockPeer,
+  DCFValuation,
 } from "@/lib/data/types";
 
 interface StockTabsProps {
@@ -71,6 +76,11 @@ interface StockTabsProps {
   historicalPrices: HistoricalPrice[];
   recommendations: AnalystRecommendation[];
   analystEstimates: AnalystEstimate[];
+  priceTargets: PriceTarget[];
+  upgradesDowngrades: UpgradeDowngrade[];
+  earningsSurprises: EarningsSurprise[];
+  peers: StockPeer[];
+  dcf: DCFValuation | null;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -671,8 +681,35 @@ export function StockTabs({
   historicalPrices,
   recommendations,
   analystEstimates,
+  priceTargets,
+  upgradesDowngrades,
+  earningsSurprises,
+  peers,
+  dcf,
 }: StockTabsProps) {
   const name = profile?.name ?? ticker;
+
+  // Map earnings surprises to chart event markers
+  const earningsChartEvents: EarningsEvent[] = earningsSurprises
+    .filter((s) => s.date)
+    .map((s) => ({
+      date: s.date,
+      beat: s.epsActual != null && s.epsEstimate != null
+        ? s.epsActual > s.epsEstimate
+        : null,
+      surprisePercent: s.epsSurprisePercent ?? null,
+    }));
+
+  // Map insider trades to chart event markers (significant trades only: $100K+)
+  const insiderChartEvents: InsiderEvent[] = insiderTrades
+    .filter((t) => t.date && t.totalValue >= 100_000)
+    .slice(0, 20)
+    .map((t) => ({
+      date: t.date,
+      type: t.type as "Buy" | "Sale",
+      name: t.name,
+      totalValue: t.totalValue,
+    }));
 
   const incomeRows = [
     { label: "Revenue", key: "revenue" as const, format: fmt },
@@ -757,13 +794,62 @@ export function StockTabs({
               </Card>
             )}
 
-            {historicalPrices.length > 0 && <PriceChart prices={historicalPrices} ticker={ticker} quote={quote} />}
+            {historicalPrices.length > 0 && (
+              <PriceChart
+                prices={historicalPrices}
+                ticker={ticker}
+                quote={quote}
+                earningsEvents={earningsChartEvents}
+                insiderEvents={insiderChartEvents}
+              />
+            )}
 
             {financials && financials.annual.length >= 2 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <RevenueChart financials={financials} />
                 <EPSChart financials={financials} />
               </div>
+            )}
+
+            {earningsSurprises.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Earnings Track Record</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                    {earningsSurprises.slice(0, 8).reverse().map((s, i) => {
+                      const beat = s.epsActual != null && s.epsEstimate != null && s.epsActual > s.epsEstimate;
+                      const miss = s.epsActual != null && s.epsEstimate != null && s.epsActual < s.epsEstimate;
+                      return (
+                        <div key={i} className="text-center">
+                          <div className={cn(
+                            "size-8 rounded-full flex items-center justify-center mx-auto mb-1 text-xs font-bold",
+                            beat ? "bg-positive/15 text-positive" : miss ? "bg-negative/15 text-negative" : "bg-secondary text-muted-foreground"
+                          )}>
+                            {beat ? "\u2713" : miss ? "\u2717" : "\u2014"}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">{new Date(s.date).toLocaleDateString(undefined, { month: "short", year: "2-digit" })}</p>
+                          {s.epsSurprisePercent != null && (
+                            <p className={cn("text-[10px] font-medium", s.epsSurprisePercent >= 0 ? "text-positive" : "text-negative")}>
+                              {s.epsSurprisePercent >= 0 ? "+" : ""}{s.epsSurprisePercent.toFixed(1)}%
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {(() => {
+                    const beats = earningsSurprises.filter(s => s.epsActual != null && s.epsEstimate != null && s.epsActual > s.epsEstimate).length;
+                    const total = earningsSurprises.filter(s => s.epsActual != null && s.epsEstimate != null).length;
+                    return total > 0 ? (
+                      <p className="text-xs text-muted-foreground mt-3 text-center">
+                        Beat estimates {beats} of {total} quarters ({((beats / total) * 100).toFixed(0)}%)
+                      </p>
+                    ) : null;
+                  })()}
+                </CardContent>
+              </Card>
             )}
 
             {profile && (
@@ -858,7 +944,13 @@ export function StockTabs({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             {historicalPrices.length > 0 ? (
-              <PriceChart prices={historicalPrices} ticker={ticker} quote={quote} />
+              <PriceChart
+                prices={historicalPrices}
+                ticker={ticker}
+                quote={quote}
+                earningsEvents={earningsChartEvents}
+                insiderEvents={insiderChartEvents}
+              />
             ) : (
               <Card><CardContent className="py-12 text-center text-muted-foreground"><p className="text-sm">Historical price data not available for {ticker}.</p></CardContent></Card>
             )}
@@ -1040,6 +1132,118 @@ export function StockTabs({
 
             {analystEstimates.length > 0 && <EstimatesTable estimates={analystEstimates} />}
 
+            {priceTargets.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Analyst Price Targets</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {quote && (() => {
+                      const avgTarget = priceTargets.slice(0, 10).reduce((s, t) => s + t.targetPrice, 0) / Math.min(priceTargets.length, 10);
+                      const highTarget = Math.max(...priceTargets.slice(0, 10).map(t => t.targetPrice));
+                      const lowTarget = Math.min(...priceTargets.slice(0, 10).map(t => t.targetPrice));
+                      const upside = ((avgTarget - quote.price) / quote.price * 100);
+                      return (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Low</p>
+                              <p className="text-sm font-semibold">${lowTarget.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Average</p>
+                              <p className="text-lg font-bold text-brand">${avgTarget.toFixed(2)}</p>
+                              <p className={cn("text-xs font-medium", upside >= 0 ? "text-positive" : "text-negative")}>
+                                {upside >= 0 ? "+" : ""}{upside.toFixed(1)}% upside
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">High</p>
+                              <p className="text-sm font-semibold">${highTarget.toFixed(2)}</p>
+                            </div>
+                          </div>
+                          <div className="relative h-2 bg-secondary rounded-full overflow-hidden">
+                            {(() => {
+                              const range = highTarget - lowTarget;
+                              const pos = range > 0 ? ((quote.price - lowTarget) / range) * 100 : 50;
+                              return (
+                                <>
+                                  <div className="absolute inset-0 bg-gradient-to-r from-negative/30 via-warning/30 to-positive/30 rounded-full" />
+                                  <div
+                                    className="absolute top-1/2 -translate-y-1/2 size-3 rounded-full bg-foreground border-2 border-background shadow-sm"
+                                    style={{ left: `${Math.max(0, Math.min(100, pos))}%` }}
+                                  />
+                                </>
+                              );
+                            })()}
+                          </div>
+                          <p className="text-xs text-muted-foreground text-center">
+                            Current: ${quote.price.toFixed(2)} &middot; {priceTargets.length} analyst{priceTargets.length !== 1 ? "s" : ""}
+                          </p>
+                        </div>
+                      );
+                    })()}
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">Date</TableHead>
+                          <TableHead className="text-xs">Analyst</TableHead>
+                          <TableHead className="text-xs text-right">Target</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {priceTargets.slice(0, 8).map((pt, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="text-xs text-muted-foreground">{new Date(pt.date).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-xs">
+                              <span className="font-medium">{pt.analystCompany}</span>
+                              {pt.analystName && <span className="text-muted-foreground ml-1">({pt.analystName})</span>}
+                            </TableCell>
+                            <TableCell className="text-xs text-right font-medium">${pt.targetPrice.toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {upgradesDowngrades.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Recent Upgrades & Downgrades</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {upgradesDowngrades.slice(0, 8).map((ud, i) => (
+                      <div key={i} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium">{ud.analystCompany}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(ud.date).toLocaleDateString()}</p>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs shrink-0">
+                          {ud.ratingFrom && (
+                            <span className="text-muted-foreground">{ud.ratingFrom}</span>
+                          )}
+                          <span className="text-muted-foreground">&rarr;</span>
+                          <span className={cn(
+                            "font-medium px-2 py-0.5 rounded-full",
+                            ud.action === "upgrade" ? "bg-positive/10 text-positive" :
+                            ud.action === "downgrade" ? "bg-negative/10 text-negative" :
+                            "bg-secondary text-muted-foreground"
+                          )}>
+                            {ud.ratingTo || ud.action}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {ratios ? (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -1056,6 +1260,51 @@ export function StockTabs({
             ) : null}
           </div>
           <div className="space-y-6">
+            {dcf && quote && (() => {
+              const diff = ((dcf.dcf - quote.price) / quote.price * 100);
+              return (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">Fair Value Estimate</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center space-y-2">
+                      <p className="text-2xl font-bold font-display">${dcf.dcf.toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground">DCF Fair Value</p>
+                      <p className={cn(
+                        "text-sm font-medium",
+                        diff > 10 ? "text-positive" : diff < -10 ? "text-negative" : "text-muted-foreground"
+                      )}>
+                        {diff > 0 ? "+" : ""}{diff.toFixed(1)}% vs current price
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {diff > 10 ? "Potentially undervalued" : diff < -10 ? "Potentially overvalued" : "Near fair value"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+            {peers.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Related Stocks</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {peers.map((p) => (
+                      <a
+                        key={p.ticker}
+                        href={`/stocks/${p.ticker.toLowerCase().replace(".", "-")}`}
+                        className="inline-flex items-center px-3 py-1.5 rounded-lg bg-secondary/60 hover:bg-secondary text-xs font-medium transition-colors"
+                      >
+                        {p.ticker}
+                      </a>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             <NewsSidebar news={news.slice(0, 6)} name={name} />
           </div>
         </div>

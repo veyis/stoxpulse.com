@@ -1,9 +1,13 @@
 // Dashboard-specific data fetching
 // Fetches market indices, watchlist quotes, earnings calendar, and news in parallel
 
-import { getQuote, getNews, getEarningsCalendar, getFilings, getInsiderTrades, getProfile, getFinancials } from "./index";
-import type { StockQuote, SECFiling, InsiderTransaction } from "@/lib/types/stock";
+import {
+  getQuote, getNews, getEarningsCalendar, getFilings,
+  getInsiderTrades, getProfile, getFinancials, getHistoricalPrices,
+} from "./index";
+import type { StockQuote, SECFiling } from "@/lib/types/stock";
 import type { NewsItem, EarningsCalendarEntry } from "./types";
+import type { InsiderTransaction } from "@/lib/types/stock";
 import { generateAISignals, isAIEnabled } from "@/lib/ai/gemini";
 import type { AIStockAnalysis } from "@/lib/ai/types";
 
@@ -48,29 +52,6 @@ export interface DashboardData {
   aiAnalyses: AIStockAnalysis[];
 }
 
-// Generate fake sparkline data from a price (deterministic from ticker hash)
-function generateSparkData(price: number, changePercent: number): number[] {
-  const points = 20;
-  const data: number[] = [];
-  const startPrice = price / (1 + changePercent / 100);
-  const step = (price - startPrice) / points;
-  let current = startPrice;
-
-  // Simple seed from price for deterministic randomness
-  let seed = Math.round(price * 100);
-  const random = () => {
-    seed = (seed * 16807 + 0) % 2147483647;
-    return (seed / 2147483647) - 0.5;
-  };
-
-  for (let i = 0; i < points; i++) {
-    current += step + random() * (price * 0.005);
-    data.push(current);
-  }
-  data.push(price); // End at current price
-  return data;
-}
-
 export async function getDashboardData(
   watchlistTickers: string[] = DEFAULT_WATCHLIST
 ): Promise<DashboardData> {
@@ -81,8 +62,11 @@ export async function getDashboardData(
   const fromDate = today.toISOString().split("T")[0];
   const toDate = nextWeek.toISOString().split("T")[0];
 
+  // All tickers that need sparkline data (indices + watchlist)
+  const allSparkTickers = [...MARKET_INDICES.map((i) => i.symbol), ...watchlistTickers];
+
   // Fetch everything in parallel
-  const [indexQuotes, watchlistQuotes, news, earningsCalendar, filingsData, insiderData] =
+  const [indexQuotes, watchlistQuotes, news, earningsCalendar, filingsData, insiderData, sparklineMap] =
     await Promise.all([
       // Market indices
       Promise.all(
@@ -109,25 +93,25 @@ export async function getDashboardData(
           filings: await getFilings(ticker, 3).catch(() => []),
         }))
       ),
-      // Insider trades (top 4 tickers)
+      // Insider trades (top 4 tickers) — now uses FMP with real $ amounts
       Promise.all(
         watchlistTickers.slice(0, 4).map(async (ticker) => ({
           ticker,
           trades: await getInsiderTrades(ticker, 3).catch(() => []),
         }))
       ),
+      // Real sparkline data: last 20 days of closing prices for each ticker
+      fetchSparklineData(allSparkTickers),
     ]);
 
-  // Map index data
+  // Map index data with REAL sparklines
   const indices: MarketIndexData[] = indexQuotes.map((idx) => ({
     symbol: idx.symbol,
     name: idx.name,
     price: idx.quote?.price ?? 0,
     change: idx.quote?.change ?? 0,
     changePercent: idx.quote?.changePercent ?? 0,
-    sparkData: idx.quote
-      ? generateSparkData(idx.quote.price, idx.quote.changePercent)
-      : [0, 0],
+    sparkData: sparklineMap[idx.symbol] ?? (idx.quote ? [idx.quote.price] : [0]),
   }));
 
   // Map watchlist data with stock names from SP500 data
@@ -138,9 +122,7 @@ export async function getDashboardData(
       ticker: wq.ticker,
       name: stockMeta?.name ?? wq.ticker,
       quote: wq.quote,
-      sparkData: wq.quote
-        ? generateSparkData(wq.quote.price, wq.quote.changePercent)
-        : [0, 0],
+      sparkData: sparklineMap[wq.ticker] ?? (wq.quote ? [wq.quote.price] : [0]),
     };
   });
 
@@ -152,7 +134,6 @@ export async function getDashboardData(
       aiTickers.map(async (ticker) => {
         const wq = watchlistQuotes.find((w) => w.ticker === ticker);
         const filing = filingsData.find((f) => f.ticker === ticker);
-        const insider = insiderData.find((t) => t.ticker === ticker);
         // Fetch profile + financials for AI context (parallel)
         const [profile, financials] = await Promise.all([
           getProfile(ticker).catch(() => null),
@@ -167,12 +148,14 @@ export async function getDashboardData(
           cashFlow: null,
           ratios: null,
           filings: filing?.filings ?? [],
-          insiderTrades: insider?.trades ?? [],
+          insiderTrades: insiderData.find((t) => t.ticker === ticker)?.trades ?? [],
           news: news.filter((n) => n.relatedTickers.includes(ticker)),
           earningsCalendar,
           historicalPrices: [],
           recommendations: [],
           analystEstimates: [],
+          priceTargets: [],
+          upgradesDowngrades: [],
         });
       })
     );
@@ -188,6 +171,28 @@ export async function getDashboardData(
     recentInsiderTrades: insiderData,
     aiAnalyses,
   };
+}
+
+// Fetch last 20 days of closing prices for sparklines (REAL data, not synthetic)
+async function fetchSparklineData(tickers: string[]): Promise<Record<string, number[]>> {
+  const result: Record<string, number[]> = {};
+
+  // Fetch historical prices for all tickers in parallel
+  const responses = await Promise.all(
+    tickers.map(async (ticker) => {
+      const prices = await getHistoricalPrices(ticker).catch(() => []);
+      return { ticker, prices };
+    })
+  );
+
+  for (const { ticker, prices } of responses) {
+    if (prices.length > 0) {
+      // Take last 20 days, reverse to oldest-first for sparkline rendering
+      result[ticker] = prices.slice(0, 20).map((p) => p.close).reverse();
+    }
+  }
+
+  return result;
 }
 
 async function fetchAggregateNews(tickers: string[]): Promise<NewsItem[]> {

@@ -4,6 +4,10 @@ import { LiveWatchlist } from "@/components/dashboard/live-watchlist";
 import { SignalFeed, type SignalFeedItem } from "@/components/dashboard/signal-feed";
 import { EarningsCalendarCard } from "@/components/dashboard/earnings-calendar-card";
 import { NewsFeedCard } from "@/components/dashboard/news-feed-card";
+import { PulseScan, type PulseScanStock } from "@/components/dashboard/pulse-scan";
+import { SectorHeatmap, type SectorHeatmapData } from "@/components/dashboard/sector-heatmap";
+import { AIDailyDigest } from "@/components/dashboard/ai-daily-digest";
+import { calculatePulseScore } from "@/lib/pulse-score";
 import type { SignalType } from "@/components/stocks/signal-badge";
 
 import { connection } from "next/server";
@@ -180,6 +184,72 @@ export default async function DashboardPage() {
       .map((s) => ({ type: s.type, label: s.title })),
   }));
 
+  // Calculate Pulse Scores for watchlist (lightweight — uses already-fetched data)
+  const pulseStocks: PulseScanStock[] = data.watchlist
+    .filter((w) => w.quote)
+    .map((w) => {
+      const score = calculatePulseScore({
+        quote: w.quote,
+        profile: null,
+        financials: null,
+        balanceSheet: null,
+        cashFlow: null,
+        ratios: null,
+        filings: [],
+        insiderTrades: data.recentInsiderTrades.find((t) => t.ticker === w.ticker)?.trades ?? [],
+        news: data.news.filter((n) => n.relatedTickers.includes(w.ticker)),
+        historicalPrices: [],
+        recommendations: [],
+        analystEstimates: [],
+        priceTargets: [],
+        upgradesDowngrades: [],
+        earningsSurprises: [],
+        peers: [],
+        dcf: null,
+        aiAnalysis: null,
+      });
+      return {
+        ticker: w.ticker,
+        name: w.name,
+        pulseScore: score.total,
+        grade: score.grade,
+        changePercent: w.quote?.changePercent ?? 0,
+      };
+    });
+
+  // Fetch sector performance (from sector ETFs)
+  let sectorData: SectorHeatmapData[] = [];
+  try {
+    const { getQuote } = await import("@/lib/data");
+    const SECTOR_ETFS = [
+      { name: "Technology", slug: "technology", etf: "XLK" },
+      { name: "Healthcare", slug: "healthcare", etf: "XLV" },
+      { name: "Financials", slug: "financial-services", etf: "XLF" },
+      { name: "Consumer Disc.", slug: "consumer-cyclical", etf: "XLY" },
+      { name: "Communication", slug: "communication-services", etf: "XLC" },
+      { name: "Industrials", slug: "industrials", etf: "XLI" },
+      { name: "Consumer Staples", slug: "consumer-defensive", etf: "XLP" },
+      { name: "Energy", slug: "energy", etf: "XLE" },
+      { name: "Utilities", slug: "utilities", etf: "XLU" },
+      { name: "Real Estate", slug: "real-estate", etf: "XLRE" },
+      { name: "Materials", slug: "basic-materials", etf: "XLB" },
+    ];
+    const results = await Promise.all(
+      SECTOR_ETFS.map(async (s) => {
+        const quote = await getQuote(s.etf).catch(() => null);
+        return {
+          name: s.name,
+          slug: s.slug,
+          changePercent: quote?.changePercent ?? 0,
+          marketCap: quote?.marketCap ?? 0,
+        };
+      })
+    );
+    sectorData = results;
+  } catch {
+    // Sector data is optional — dashboard still works without it
+  }
+
   return (
     <div className="space-y-6">
       {/* Greeting header */}
@@ -197,25 +267,32 @@ export default async function DashboardPage() {
 
       {/* Row 2: Bento grid — Watchlist (8-col) + Signals (4-col) */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-        {/* Watchlist — takes 8 columns */}
         <div className="xl:col-span-8">
           <LiveWatchlist stocks={watchlistStocks} />
         </div>
-
-        {/* Signal Feed — takes 4 columns */}
         <div className="xl:col-span-4">
           <SignalFeed signals={signals} />
         </div>
       </div>
 
-      {/* Row 3: News (8-col) + Earnings Calendar (4-col) */}
+      {/* Row 3: Pulse Scan (4) + Sector Heatmap (4) + AI Digest (4) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-4">
+        <div className="xl:col-span-4">
+          <PulseScan stocks={pulseStocks} />
+        </div>
+        <div className="xl:col-span-4">
+          <SectorHeatmap sectors={sectorData} />
+        </div>
+        <div className="xl:col-span-4">
+          <AIDailyDigest />
+        </div>
+      </div>
+
+      {/* Row 4: News (8-col) + Earnings Calendar (4-col) */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-        {/* News — takes 8 columns */}
         <div className="xl:col-span-8">
           <NewsFeedCard news={data.news} />
         </div>
-
-        {/* Earnings Calendar — takes 4 columns */}
         <div className="xl:col-span-4">
           <EarningsCalendarCard entries={data.earningsCalendar} />
         </div>

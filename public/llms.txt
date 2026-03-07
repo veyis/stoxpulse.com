@@ -20,28 +20,42 @@ Self-directed retail investors, finance enthusiasts, and individual portfolio ma
 ## Key Pages
 
 - [Homepage](https://stoxpulse.com) — Product overview and waitlist
-- [S&P 500 Stock Analysis](https://stoxpulse.com/stocks) — Browse all 500 stocks with AI analysis
-- [AI Signals](https://stoxpulse.com/signals) — AI-generated buy/sell/hold signals
-- [Earnings Calendar](https://stoxpulse.com/earnings) — Upcoming earnings with AI previews
-- [Free Tools](https://stoxpulse.com/tools) — Free AI-powered investor tools
-- [Blog](https://stoxpulse.com/blog) — Educational content on AI investing, earnings analysis, SEC filings
-- [Glossary](https://stoxpulse.com/glossary) — Financial terms explained clearly
+- [S&P 500 Stock Analysis](https://stoxpulse.com/stocks) — Browse all 499 stocks with AI Pulse Score analysis
+- [AI Signals](https://stoxpulse.com/signals) — Live AI-generated market signals with methodology
+- [Earnings Calendar](https://stoxpulse.com/earnings) — Upcoming earnings with EPS estimates and previews
+- [Free Tools](https://stoxpulse.com/tools) — 10 free AI-powered investor tools
+- [Blog](https://stoxpulse.com/blog) — 30+ articles on AI investing, earnings analysis, SEC filings
+- [Glossary](https://stoxpulse.com/glossary) — 100 financial terms explained clearly
+- [About](https://stoxpulse.com/about) — Mission, methodology, and data sources
+- [Commodity Tracking](https://stoxpulse.com/stocks/xauusd) — Live gold price with technicals, chart, and tools
 
-## Free Tools Available
+## Free Tools Available (10 Tools)
 
-- [SEC Filing Translator](https://stoxpulse.com/tools/sec-filing-translator) — Paste any SEC filing text and get a plain-English AI summary
-- [Stock Sentiment Checker](https://stoxpulse.com/tools/stock-sentiment-checker) — Check AI-scored sentiment for any stock
-- [Earnings Call Summarizer](https://stoxpulse.com/tools/earnings-call-summarizer) — Summarize earnings call transcripts with AI
+- [Earnings Call Summarizer](https://stoxpulse.com/tools/earnings-call-summarizer) — AI-powered earnings call transcript analysis with sentiment scoring and red flag detection
+- [SEC Filing Translator](https://stoxpulse.com/tools/sec-filing-translator) — Translate SEC filings (10-K, 10-Q, 8-K, Form 4) from legalese to plain English
+- [Stock Sentiment Checker](https://stoxpulse.com/tools/stock-sentiment-checker) — AI-scored sentiment analysis from news, social media, and analyst commentary
+- [Earnings Calendar](https://stoxpulse.com/tools/earnings-calendar) — Upcoming earnings dates with EPS estimates and sector filtering
+- [Portfolio Risk Scanner](https://stoxpulse.com/tools/portfolio-risk-scanner) — Analyze sector concentration, correlation, and diversification across your holdings
+- [Stock Screener](https://stoxpulse.com/tools/stock-screener) — Filter S&P 500 stocks by AI Pulse Score, sector, market cap, and key metrics
+- [Dividend Calculator](https://stoxpulse.com/tools/dividend-calculator) — Calculate dividend income and DRIP growth projections
+- [DCF Valuation Calculator](https://stoxpulse.com/tools/dcf-calculator) — Discounted Cash Flow model with adjustable growth rate, discount rate, and terminal multiple
+- [Insider Trading Tracker](https://stoxpulse.com/tools/insider-tracker) — Real-time insider buys and sells with AI context on trade significance
+- [Compare Stocks](https://stoxpulse.com/tools/compare-stocks) — Side-by-side comparison with radar charts and AI verdict
 
-## Stock Data Coverage
+## Stock Data Coverage (527 Pages)
 
 Full AI analysis for all S&P 500 stocks, including:
 - Real-time price quotes and historical data
-- Earnings history (quarterly and annual EPS, revenue, margins)
-- SEC filings (10-K, 10-Q, 8-K, Form 4 insider transactions)
-- Analyst recommendations and price targets
-- Insider trading activity from SEC EDGAR
-- AI-generated trading signals with confidence scores and rationale
+- AI Pulse Score (composite metric: Value + Growth + Health + Momentum + Sentiment, scored 0-100)
+- Earnings history (quarterly and annual EPS, revenue, margins) — dedicated per-stock earnings pages
+- SEC filings (10-K, 10-Q, 8-K, Form 4 insider transactions) — dedicated per-stock insider trading pages
+- Analyst recommendations, price targets, and upgrades/downgrades
+- Insider trading activity from SEC EDGAR with AI context
+- AI-generated analysis with confidence scores and rationale
+- 11 sector overview pages with industry filtering and stock search
+- Live commodity tracking (Gold XAUUSD, Silver XAGUSD) with technicals, charts, and tools
+- 8 competitor comparison pages (e.g., StoxPulse vs TipRanks)
+- 8 alternatives pages (e.g., TipRanks Alternatives)
 
 ## Data Sources
 

@@ -21,11 +21,11 @@ import {
   tickerToSlug,
   slugToTicker,
 } from "@/data/stocks/sp500";
-import { getFinancials } from "@/lib/data";
-import type { FinancialStatements, FinancialPeriod } from "@/lib/data/types";
+import { getFinancials, getEarningsSurprises } from "@/lib/data";
+import type { FinancialStatements, FinancialPeriod, EarningsSurprise } from "@/lib/data/types";
 
 export function generateStaticParams() {
-  return sp500Stocks.map((stock) => ({
+  return sp500Stocks.slice(0, 100).map((stock) => ({
     ticker: tickerToSlug(stock.ticker),
   }));
 }
@@ -116,8 +116,12 @@ export default async function EarningsHistoryPage({ params }: Props) {
   }
 
   let financials: FinancialStatements | null = null;
+  let earningsSurprises: EarningsSurprise[] = [];
   try {
-    financials = await getFinancials(stock.ticker);
+    [financials, earningsSurprises] = await Promise.all([
+      getFinancials(stock.ticker).catch(() => null),
+      getEarningsSurprises(stock.ticker).catch(() => []),
+    ]);
   } catch {
     financials = null;
   }
@@ -272,6 +276,9 @@ export default async function EarningsHistoryPage({ params }: Props) {
                 <p className="text-sm text-muted-foreground">
                   {stock.name} — Quarterly &amp; Annual Financial Results
                 </p>
+                <p className="mt-1 text-[11px] text-muted-foreground/60 uppercase tracking-wider font-medium">
+                  Historical Earnings Data
+                </p>
               </div>
             </div>
             <p className="mt-3 text-muted-foreground leading-relaxed max-w-3xl">
@@ -322,6 +329,74 @@ export default async function EarningsHistoryPage({ params }: Props) {
               <p className="text-xs text-muted-foreground mt-0.5">Quarterly reports</p>
             </div>
           </section>
+
+          {/* Earnings Beat/Miss Track Record */}
+          {earningsSurprises.length > 0 && (
+            <section className="mb-10">
+              <h2 className="font-display text-xl font-bold text-foreground mb-4">
+                EPS Beat/Miss History
+              </h2>
+              <div className="rounded-2xl border border-border/50 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border/50 bg-surface-1/60">
+                        <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Date</th>
+                        <th className="text-right px-4 py-3 font-semibold text-muted-foreground">EPS Est.</th>
+                        <th className="text-right px-4 py-3 font-semibold text-muted-foreground">EPS Actual</th>
+                        <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Surprise</th>
+                        <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Rev. Est.</th>
+                        <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Rev. Actual</th>
+                        <th className="text-center px-4 py-3 font-semibold text-muted-foreground">Result</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/30">
+                      {earningsSurprises.slice(0, 12).map((s, i) => {
+                        const beat = s.epsActual != null && s.epsEstimate != null && s.epsActual > s.epsEstimate;
+                        const miss = s.epsActual != null && s.epsEstimate != null && s.epsActual < s.epsEstimate;
+                        return (
+                          <tr key={i} className="hover:bg-surface-1/40 transition-colors">
+                            <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">
+                              {new Date(s.date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                            </td>
+                            <td className="px-4 py-3 text-right text-muted-foreground font-mono text-xs">
+                              {s.epsEstimate != null ? `$${s.epsEstimate.toFixed(2)}` : "—"}
+                            </td>
+                            <td className={`px-4 py-3 text-right font-mono text-xs font-semibold ${beat ? "text-success" : miss ? "text-destructive" : "text-foreground"}`}>
+                              {s.epsActual != null ? `$${s.epsActual.toFixed(2)}` : "—"}
+                            </td>
+                            <td className={`px-4 py-3 text-right font-mono text-xs ${(s.epsSurprisePercent ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>
+                              {s.epsSurprisePercent != null ? `${s.epsSurprisePercent >= 0 ? "+" : ""}${s.epsSurprisePercent.toFixed(1)}%` : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-right text-muted-foreground font-mono text-xs whitespace-nowrap">
+                              {s.revenueEstimate != null ? formatLargeNumber(s.revenueEstimate) : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-xs whitespace-nowrap">
+                              {s.revenueActual != null ? formatLargeNumber(s.revenueActual) : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${beat ? "bg-success/10 text-success" : miss ? "bg-destructive/10 text-destructive" : "bg-secondary text-muted-foreground"}`}>
+                                {beat ? "Beat" : miss ? "Miss" : "Inline"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {(() => {
+                  const beats = earningsSurprises.filter(s => s.epsActual != null && s.epsEstimate != null && s.epsActual > s.epsEstimate).length;
+                  const total = earningsSurprises.filter(s => s.epsActual != null && s.epsEstimate != null).length;
+                  return total > 0 ? (
+                    <div className="px-4 py-3 border-t border-border/30 bg-surface-1/30 text-xs text-muted-foreground">
+                      Beat estimates in {beats} of {total} quarters ({((beats / total) * 100).toFixed(0)}% hit rate)
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+            </section>
+          )}
 
           {/* Quarterly Earnings Table */}
           <section className="mb-10">

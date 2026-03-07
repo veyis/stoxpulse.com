@@ -11,7 +11,9 @@ import {
   Shield,
   ArrowRight,
   ChevronRight,
+  Activity,
 } from "lucide-react";
+import { LiveSignalFeed } from "@/components/signals/live-signal-feed";
 
 export const metadata: Metadata = {
   title: "AI Stock Signals — Machine Learning Predictions & Analysis",
@@ -214,6 +216,29 @@ export default function SignalsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Live Signals Feed */}
+        <section className="border-t border-border bg-surface-0 py-16 md:py-24">
+          <div className="mx-auto max-w-7xl px-6">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="size-5 text-brand" />
+                  <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                    Live Market Signals
+                  </h2>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-2.5 py-1 text-[10px] font-medium text-brand uppercase tracking-wider animate-pulse">
+                    Live
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Real-time signals from price movements, insider trades, analyst ratings, and earnings surprises across top S&P 500 stocks.
+                </p>
+              </div>
+            </div>
+            <LiveSignalFeed />
           </div>
         </section>
 

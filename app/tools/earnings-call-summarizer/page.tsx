@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/landing/footer";
+import { EarningsSummarizer } from "@/components/tools/earnings-summarizer";
 import {
   ChevronRight,
-  ArrowRight,
   Upload,
   Brain,
   FileText,
@@ -208,12 +208,15 @@ export default function EarningsCallSummarizerPage() {
 
         {/* Hero */}
         <section className="mx-auto max-w-4xl px-6 pt-12 pb-16">
-          <span className="inline-flex items-center rounded-full bg-warning/10 border border-warning/20 px-3 py-1 text-xs font-medium text-warning mb-4">
-            Coming Soon
+          <span className="inline-flex items-center rounded-full bg-brand/10 border border-brand/20 px-3 py-1 text-xs font-medium text-brand mb-4">
+            Free Tool
           </span>
           <h1 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
             AI Earnings Call <span className="text-brand">Summarizer</span>
           </h1>
+          <p className="mt-2 text-[11px] text-muted-foreground/60 uppercase tracking-wider font-medium">
+            Powered by StoxPulse AI
+          </p>
           <p className="mt-4 text-lg text-muted-foreground max-w-2xl leading-relaxed">
             Paste any earnings call transcript and get an AI-generated summary with key
             takeaways, sentiment analysis, red flags, and management tone insights — in
@@ -278,24 +281,12 @@ export default function EarningsCallSummarizerPage() {
           </div>
         </section>
 
-        {/* Coming Soon CTA */}
+        {/* Interactive Tool */}
         <section className="mx-auto max-w-4xl px-6 pb-16">
-          <div className="rounded-2xl bg-brand/5 border border-brand/20 p-8 md:p-12 text-center">
-            <h2 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
-              Be the first to try it
-            </h2>
-            <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
-              The Earnings Call Summarizer is currently in development. Join the waitlist
-              to get early access when it launches.
-            </p>
-            <Link
-              href="/#waitlist"
-              className="mt-6 inline-flex items-center justify-center rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground hover:bg-brand/90 transition-colors"
-            >
-              Join Waitlist for Early Access
-              <ArrowRight className="ml-2 size-4" />
-            </Link>
-          </div>
+          <h2 className="font-display text-2xl font-bold text-foreground mb-6">
+            Try It Now
+          </h2>
+          <EarningsSummarizer />
         </section>
 
         {/* FAQ */}

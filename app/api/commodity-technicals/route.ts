@@ -1,16 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-interface FMPTechnical {
-  date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-  rsi?: number;
-  sma?: number;
-  ema?: number;
-}
+import { calculateAllTechnicals, type OHLCV } from "@/lib/technicals";
 
 interface FMPQuote {
   symbol: string;
@@ -28,6 +17,15 @@ interface FMPNews {
   site: string;
   text: string;
   url: string;
+}
+
+interface FMPHistorical {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
 }
 
 const COMMODITY_SYMBOLS = new Set(["XAUUSD", "XAGUSD"]);
@@ -51,82 +49,44 @@ export async function GET(request: NextRequest) {
   const base = "https://financialmodelingprep.com/stable";
 
   try {
-    const [rsiRes, rsi4hRes, sma20Res, sma50Res, sma200Res, ema9Res, ema21Res, ema50Res, otherQuoteRes, newsRes] = await Promise.all([
-      fetch(`${base}/technical-indicators/rsi?symbol=${symbol}&timeframe=1day&periodLength=14&apikey=${apiKey}`, { cache: "no-store" }),
-      fetch(`${base}/technical-indicators/rsi?symbol=${symbol}&timeframe=4hour&periodLength=14&apikey=${apiKey}`, { cache: "no-store" }),
-      fetch(`${base}/technical-indicators/sma?symbol=${symbol}&timeframe=1day&periodLength=20&apikey=${apiKey}`, { cache: "no-store" }),
-      fetch(`${base}/technical-indicators/sma?symbol=${symbol}&timeframe=1day&periodLength=50&apikey=${apiKey}`, { cache: "no-store" }),
-      fetch(`${base}/technical-indicators/sma?symbol=${symbol}&timeframe=1day&periodLength=200&apikey=${apiKey}`, { cache: "no-store" }),
-      fetch(`${base}/technical-indicators/ema?symbol=${symbol}&timeframe=1day&periodLength=9&apikey=${apiKey}`, { cache: "no-store" }),
-      fetch(`${base}/technical-indicators/ema?symbol=${symbol}&timeframe=1day&periodLength=21&apikey=${apiKey}`, { cache: "no-store" }),
-      fetch(`${base}/technical-indicators/ema?symbol=${symbol}&timeframe=1day&periodLength=50&apikey=${apiKey}`, { cache: "no-store" }),
+    // Fetch historical prices (for calculating technicals), other metal quote, and news in parallel
+    // This uses only Starter-tier endpoints — no Premium needed
+    const [histRes, otherQuoteRes, newsRes] = await Promise.all([
+      fetch(`${base}/historical-price-eod/full?symbol=${symbol}&apikey=${apiKey}`, { cache: "no-store" }),
       fetch(`${base}/quote?symbol=${OTHER_METAL[symbol]}&apikey=${apiKey}`, { cache: "no-store" }),
       fetch(`${base}/news/stock?symbols=${symbol}&limit=6&apikey=${apiKey}`, { cache: "no-store" }),
     ]);
 
     const result: Record<string, unknown> = {};
 
-    // RSI — just the latest value
-    if (rsiRes.ok) {
-      const rsiData: FMPTechnical[] = await rsiRes.json();
-      if (rsiData?.[0]?.rsi != null) {
-        result.rsi14 = rsiData[0].rsi;
-      }
-    }
+    // Calculate all technical indicators from historical price data
+    if (histRes.ok) {
+      const histData: FMPHistorical[] = await histRes.json();
+      if (Array.isArray(histData) && histData.length > 0) {
+        // Convert to OHLCV format (data is already newest-first from FMP)
+        const ohlcv: OHLCV[] = histData.slice(0, 300).map((d) => ({
+          date: d.date,
+          open: d.open,
+          high: d.high,
+          low: d.low,
+          close: d.close,
+          volume: d.volume,
+        }));
 
-    // RSI 4-hour
-    if (rsi4hRes.ok) {
-      const rsi4hData: FMPTechnical[] = await rsi4hRes.json();
-      if (rsi4hData?.[0]?.rsi != null) {
-        result.rsi4h = rsi4hData[0].rsi;
-      }
-    }
+        const technicals = calculateAllTechnicals(ohlcv);
 
-    // SMA 20 — just the latest value
-    if (sma20Res.ok) {
-      const smaData: FMPTechnical[] = await sma20Res.json();
-      if (smaData?.[0]?.sma != null) {
-        result.sma20 = smaData[0].sma;
-      }
-    }
-
-    // SMA 50 (from API, more accurate than quote's priceAvg50)
-    if (sma50Res.ok) {
-      const sma50Data: FMPTechnical[] = await sma50Res.json();
-      if (sma50Data?.[0]?.sma != null) {
-        result.sma50 = sma50Data[0].sma;
-      }
-    }
-
-    // SMA 200 (from API, more accurate than quote's priceAvg200)
-    if (sma200Res.ok) {
-      const sma200Data: FMPTechnical[] = await sma200Res.json();
-      if (sma200Data?.[0]?.sma != null) {
-        result.sma200 = sma200Data[0].sma;
-      }
-    }
-
-    // EMA 9
-    if (ema9Res.ok) {
-      const ema9Data: FMPTechnical[] = await ema9Res.json();
-      if (ema9Data?.[0]?.ema != null) {
-        result.ema9 = ema9Data[0].ema;
-      }
-    }
-
-    // EMA 21
-    if (ema21Res.ok) {
-      const ema21Data: FMPTechnical[] = await ema21Res.json();
-      if (ema21Data?.[0]?.ema != null) {
-        result.ema21 = ema21Data[0].ema;
-      }
-    }
-
-    // EMA 50
-    if (ema50Res.ok) {
-      const ema50Data: FMPTechnical[] = await ema50Res.json();
-      if (ema50Data?.[0]?.ema != null) {
-        result.ema50 = ema50Data[0].ema;
+        result.rsi14 = technicals.rsi14;
+        result.sma20 = technicals.sma20;
+        result.sma50 = technicals.sma50;
+        result.sma200 = technicals.sma200;
+        result.ema9 = technicals.ema9;
+        result.ema21 = technicals.ema21;
+        result.ema50 = technicals.ema50;
+        result.macd = technicals.macd;
+        result.bollingerBands = technicals.bollingerBands;
+        result.atr14 = technicals.atr14;
+        result.stochastic = technicals.stochastic;
+        result.pivotPoints = technicals.pivotPoints;
       }
     }
 

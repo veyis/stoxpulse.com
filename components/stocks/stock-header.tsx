@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { StockPrice } from "./stock-price";
 import { FiftyTwoWeekBar } from "./fifty-two-week-bar";
+import { WatchlistButton } from "./watchlist-button";
 import type { StockQuote } from "@/lib/types/stock";
 import type { CompanyProfile } from "@/lib/data/types";
 
@@ -17,24 +18,27 @@ export function StockHeader({ ticker, quote, profile }: StockHeaderProps) {
 
   return (
     <div className="stock-header space-y-4">
-      {/* Company name + badges */}
-      <div>
-        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold font-display tracking-tight">{name}</h1>
-        <div className="flex items-center gap-2 mt-2">
-          <Badge variant="secondary" className="text-xs font-mono font-bold px-2.5 py-0.5">
-            {ticker}
-          </Badge>
-          {profile?.exchange && (
-            <Badge variant="outline" className="text-xs px-2.5 py-0.5">
-              {profile.exchange}
+      {/* Company name + badges + watchlist */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold font-display tracking-tight">{name}</h1>
+          <div className="flex items-center gap-2 mt-2">
+            <Badge variant="secondary" className="text-xs font-mono font-bold px-2.5 py-0.5">
+              {ticker}
             </Badge>
-          )}
-          {profile?.sector && (
-            <Badge variant="outline" className="text-xs px-2.5 py-0.5">
-              {profile.sector}
-            </Badge>
-          )}
+            {profile?.exchange && (
+              <Badge variant="outline" className="text-xs px-2.5 py-0.5">
+                {profile.exchange}
+              </Badge>
+            )}
+            {profile?.sector && (
+              <Badge variant="outline" className="text-xs px-2.5 py-0.5">
+                {profile.sector}
+              </Badge>
+            )}
+          </div>
         </div>
+        <WatchlistButton ticker={ticker} />
       </div>
 
       {/* Price block */}

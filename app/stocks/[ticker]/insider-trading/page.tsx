@@ -26,7 +26,7 @@ import { getInsiderTrades } from "@/lib/data";
 import type { InsiderTransaction } from "@/lib/types/stock";
 
 export function generateStaticParams() {
-  return sp500Stocks.map((stock) => ({
+  return sp500Stocks.slice(0, 100).map((stock) => ({
     ticker: tickerToSlug(stock.ticker),
   }));
 }
@@ -281,6 +281,9 @@ export default async function InsiderTradingPage({ params }: Props) {
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   {stock.name} — SEC Form 4 Filings
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground/60 uppercase tracking-wider font-medium">
+                  SEC Form 4 Data
                 </p>
               </div>
             </div>

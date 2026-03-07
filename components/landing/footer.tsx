@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Activity } from "lucide-react";
+
 import { motion } from "framer-motion";
 
 export function Footer() {
@@ -71,10 +71,12 @@ export function Footer() {
               </h4>
               <ul className="space-y-2 mb-6">
                 {[
-                  { label: "SEC Form 4 Decoder", href: "/tools/sec-filing-translator" },
-                  { label: "Sentiment Checker", href: "/tools/stock-sentiment-checker" },
                   { label: "Earnings Summarizer", href: "/tools/earnings-call-summarizer" },
-                  { label: "View All Tools", href: "/tools" },
+                  { label: "SEC Filing Translator", href: "/tools/sec-filing-translator" },
+                  { label: "Stock Screener", href: "/tools/stock-screener" },
+                  { label: "Portfolio Risk Scanner", href: "/tools/portfolio-risk-scanner" },
+                  { label: "Compare Stocks", href: "/tools/compare-stocks" },
+                  { label: "View All 10 Tools", href: "/tools" },
                 ].map((link) => (
                   <li key={link.label}>
                     <Link

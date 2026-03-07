@@ -4,6 +4,7 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/landing/footer";
 import { getAllPosts } from "@/data/blog/posts";
 import { ChevronRight, Clock, ArrowRight } from "lucide-react";
+import { EmailSubscribeForm } from "@/components/email-subscribe-form";
 
 export const metadata: Metadata = {
   title: "StoxPulse Blog — Stock Market Insights & AI Investing",
@@ -22,6 +23,14 @@ export const metadata: Metadata = {
     description:
       "Expert insights on AI investing, earnings calls, SEC filings, and stock research strategies.",
     url: "https://stoxpulse.com/blog",
+    images: [
+      {
+        url: "/images/og/blog.png",
+        width: 1200,
+        height: 630,
+        alt: "StoxPulse Blog — Stock Market Insights & AI Investing",
+      },
+    ],
   },
   alternates: {
     canonical: "https://stoxpulse.com/blog",
@@ -109,6 +118,22 @@ export default function BlogPage() {
                 </div>
               </Link>
             ))}
+          </div>
+        </section>
+
+        {/* Email Subscribe */}
+        <section className="mx-auto max-w-5xl px-6 pb-24">
+          <div className="rounded-2xl bg-surface-1 border border-border p-8 text-center">
+            <h2 className="font-display text-xl font-bold text-foreground sm:text-2xl">
+              Never Miss a Market Insight
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground max-w-lg mx-auto">
+              Get AI-powered market analysis, earnings alerts, and filing notifications
+              delivered to your inbox every morning.
+            </p>
+            <div className="mt-5 flex justify-center">
+              <EmailSubscribeForm />
+            </div>
           </div>
         </section>
       </main>

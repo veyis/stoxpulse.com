@@ -19,10 +19,6 @@ export const dataConfig = {
     apiKey: process.env.FMP_API_KEY ?? "",
     rateLimit: 300, // requests per minute (Starter tier)
   },
-  apiNinjas: {
-    baseUrl: "https://api.api-ninjas.com",
-    apiKey: process.env.API_NINJAS_KEY ?? "",
-  },
   cache: {
     dir: ".cache",
     // Default TTLs in seconds
@@ -33,20 +29,18 @@ export const dataConfig = {
       filings: 6 * 60 * 60, // 6 hours
       insiderTrades: 6 * 60 * 60, // 6 hours
       news: 30 * 60, // 30 minutes
-      earnings: 7 * 24 * 60 * 60, // 7 days (transcripts rarely change)
+      earnings: 7 * 24 * 60 * 60, // 7 days
       calendar: 60 * 60, // 1 hour
       tickerMap: 7 * 24 * 60 * 60, // 1 week
     },
   },
 } as const;
 
-export function isProviderEnabled(provider: "finnhub" | "fmp" | "apiNinjas"): boolean {
+export function isProviderEnabled(provider: "finnhub" | "fmp"): boolean {
   switch (provider) {
     case "finnhub":
       return !!dataConfig.finnhub.apiKey;
     case "fmp":
       return !!dataConfig.fmp.apiKey;
-    case "apiNinjas":
-      return !!dataConfig.apiNinjas.apiKey;
   }
 }

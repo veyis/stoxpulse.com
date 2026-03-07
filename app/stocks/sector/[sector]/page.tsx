@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, ArrowRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/landing/footer";
 import {
@@ -11,6 +11,7 @@ import {
   slugToSector,
   tickerToSlug,
 } from "@/data/stocks/sp500";
+import { SectorOverview } from "@/components/stocks/sector-overview";
 
 export function generateStaticParams() {
   return getAllSectors().map((sector) => ({
@@ -145,51 +146,72 @@ export default async function SectorPage({ params }: Props) {
             </p>
           </div>
 
-          {/* Stock Grid */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {stocks.map((stock) => (
+          {/* Enhanced Sector Overview */}
+          <SectorOverview
+            sector={sector}
+            stocks={stocks.map((s) => ({
+              ticker: s.ticker,
+              name: s.name,
+              industry: s.industry,
+              slug: tickerToSlug(s.ticker),
+            }))}
+          />
+
+          {/* Related Tools */}
+          <section className="mt-12 rounded-2xl border border-border bg-surface-1 p-6">
+            <h2 className="font-display text-lg font-semibold text-foreground mb-3">
+              Analyze {sector} Stocks
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Use our free tools to dive deeper into {sector} companies.
+            </p>
+            <div className="flex flex-wrap gap-2">
               <Link
-                key={stock.ticker}
-                href={`/stocks/${tickerToSlug(stock.ticker)}`}
-                className="group rounded-2xl border border-border bg-surface-1 p-5 transition-all duration-300 hover:border-brand/30 hover:bg-surface-2"
+                href="/tools/stock-screener"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-surface-2 border border-border px-3 py-2 text-xs font-medium text-foreground hover:border-brand/30 hover:text-brand transition-colors"
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <span className="font-display text-lg font-bold text-foreground">
-                      {stock.ticker}
-                    </span>
-                    <span className="ml-2 inline-flex items-center rounded-full bg-surface-2 px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      {stock.exchange}
-                    </span>
-                  </div>
-                  <ArrowRight className="size-4 text-muted-foreground/40 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:text-brand" />
-                </div>
-                <p className="text-sm font-medium text-foreground mb-1">
-                  {stock.name}
-                </p>
-                <p className="text-xs text-muted-foreground">{stock.industry}</p>
+                Stock Screener
+                <ChevronRight className="size-3" />
               </Link>
-            ))}
-          </div>
+              <Link
+                href="/tools/compare-stocks"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-surface-2 border border-border px-3 py-2 text-xs font-medium text-foreground hover:border-brand/30 hover:text-brand transition-colors"
+              >
+                Compare Stocks
+                <ChevronRight className="size-3" />
+              </Link>
+              <Link
+                href="/tools/earnings-calendar"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-surface-2 border border-border px-3 py-2 text-xs font-medium text-foreground hover:border-brand/30 hover:text-brand transition-colors"
+              >
+                Earnings Calendar
+                <ChevronRight className="size-3" />
+              </Link>
+            </div>
+          </section>
 
           {/* Other Sectors */}
-          <section className="mt-16">
+          <section className="mt-12">
             <h2 className="font-display text-xl font-semibold text-foreground mb-4">
               Browse Other Sectors
             </h2>
             <div className="flex flex-wrap gap-2">
               {getAllSectors()
                 .filter((s) => s !== sector)
-                .map((s) => (
-                  <Link
-                    key={s}
-                    href={`/stocks/sector/${sectorToSlug(s)}`}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface-1 px-4 py-2 text-sm text-muted-foreground transition-all duration-300 hover:border-brand/30 hover:text-foreground"
-                  >
-                    {s}
-                    <ChevronRight className="size-3.5" />
-                  </Link>
-                ))}
+                .map((s) => {
+                  const count = getStocksBySector(s).length;
+                  return (
+                    <Link
+                      key={s}
+                      href={`/stocks/sector/${sectorToSlug(s)}`}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface-1 px-4 py-2 text-sm text-muted-foreground transition-all hover:border-brand/30 hover:text-foreground"
+                    >
+                      {s}
+                      <span className="text-xs text-muted-foreground/60">({count})</span>
+                      <ChevronRight className="size-3.5" />
+                    </Link>
+                  );
+                })}
             </div>
           </section>
         </div>

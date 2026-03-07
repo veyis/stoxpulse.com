@@ -170,6 +170,66 @@ export interface AnalystEstimate {
   numAnalysts: number;
 }
 
+export interface InsiderTrade {
+  ticker: string;
+  name: string;
+  title: string;
+  type: "Buy" | "Sale";
+  transactionType: "Buy" | "Sell" | "Exercise" | "Other";
+  shares: number;
+  pricePerShare: number;
+  totalValue: number;
+  date: string;
+  filingDate: string;
+  isRoutine: boolean;
+}
+
+export interface PriceTarget {
+  ticker: string;
+  analystName: string;
+  analystCompany: string;
+  targetPrice: number;
+  priceWhenPosted: number;
+  action: string; // "upgraded", "downgraded", "maintained", "initiated"
+  ratingCurrent: string;
+  date: string;
+}
+
+export interface UpgradeDowngrade {
+  ticker: string;
+  analystCompany: string;
+  action: string; // "upgrade", "downgrade", "reiterated", "initiated"
+  ratingFrom: string;
+  ratingTo: string;
+  priceTargetFrom: number | null;
+  priceTargetTo: number | null;
+  date: string;
+}
+
+export interface EarningsSurprise {
+  ticker: string;
+  date: string;
+  epsEstimate: number | null;
+  epsActual: number | null;
+  epsSurprise: number | null;
+  epsSurprisePercent: number | null;
+  revenueEstimate: number | null;
+  revenueActual: number | null;
+  revenueSurprise: number | null;
+}
+
+export interface StockPeer {
+  ticker: string;
+  name?: string;
+}
+
+export interface DCFValuation {
+  ticker: string;
+  dcf: number;
+  price: number;
+  date: string;
+}
+
 export interface CIKMapping {
   [ticker: string]: {
     cik: string;
@@ -190,8 +250,14 @@ export interface DataProvider {
   getInsiderTrades?(ticker: string, limit?: number): Promise<import("@/lib/types/stock").InsiderTransaction[]>;
   getNews?(ticker: string, limit?: number): Promise<NewsItem[]>;
   getEarningsCalendar?(from?: string, to?: string): Promise<EarningsCalendarEntry[]>;
-  getTranscript?(ticker: string, quarter: number, year: number): Promise<EarningsTranscript | null>;
   getHistoricalPrices?(ticker: string): Promise<HistoricalPrice[]>;
   getRecommendations?(ticker: string): Promise<AnalystRecommendation[]>;
   getAnalystEstimates?(ticker: string): Promise<AnalystEstimate[]>;
+  getInsiderTrading?(ticker: string, limit?: number): Promise<InsiderTrade[]>;
+  getPriceTargets?(ticker: string): Promise<PriceTarget[]>;
+  getUpgradesDowngrades?(ticker: string): Promise<UpgradeDowngrade[]>;
+  getEarningsSurprises?(ticker: string): Promise<EarningsSurprise[]>;
+  getPeers?(ticker: string): Promise<StockPeer[]>;
+  getDCF?(ticker: string): Promise<DCFValuation | null>;
+  getTranscript?(ticker: string, quarter: number, year: number): Promise<EarningsTranscript | null>;
 }

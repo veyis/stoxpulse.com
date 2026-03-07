@@ -144,9 +144,11 @@ export default function StockSentimentCheckerPage() {
             <BarChart3 className="size-8 text-brand" />
           </div>
           <h1 className="font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl mb-6">
-            Free Stock{" "}
-            <span className="text-brand">Sentiment Checker</span>
+            Free Stock <span className="text-brand">Sentiment Checker</span>
           </h1>
+          <p className="-mt-4 mb-6 text-[11px] text-muted-foreground/60 uppercase tracking-wider font-medium">
+            Powered by StoxPulse AI
+          </p>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             Enter any stock ticker to instantly see an AI-generated sentiment
             score based on recent news, social media, and analyst commentary.

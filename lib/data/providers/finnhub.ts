@@ -152,9 +152,13 @@ export const finnhubProvider: DataProvider = {
     const cached = await getCached<NewsItem[]>(cacheKey);
     if (cached) return cached;
 
+    // Guard: skip date computation during static build phase
+    if (isBuildPhase) return [];
+
     // Finnhub company news requires date range
-    const to = new Date().toISOString().split("T")[0];
-    const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const now = Date.now();
+    const to = new Date(now).toISOString().split("T")[0];
+    const from = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
     const data = await finnhubFetch<FinnhubNews[]>("/company-news", {
       symbol: ticker,

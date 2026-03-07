@@ -11,8 +11,10 @@ import { getCached, setCache } from "../cache";
 
 const { baseUrl, apiKey } = dataConfig.finnhub;
 
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+
 async function finnhubFetch<T>(endpoint: string, params: Record<string, string> = {}): Promise<T | null> {
-  if (!isProviderEnabled("finnhub")) return null;
+  if (!isProviderEnabled("finnhub") || isBuildPhase) return null;
 
   const url = new URL(`${baseUrl}${endpoint}`);
   url.searchParams.set("token", apiKey);

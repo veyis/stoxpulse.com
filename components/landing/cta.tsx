@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowRight, CheckCircle, Loader2 } from "lucide-react";
 import { motion, Variants } from "framer-motion";
 import { analytics } from "@/lib/analytics";
@@ -30,6 +30,16 @@ const avatarVariants: Variants = {
 export function CTA() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/waitlist")
+      .then((res) => res.json())
+      .then((data) => setWaitlistCount(data.count))
+      .catch(() => {});
+  }, []);
+
+  const displayCount = waitlistCount ?? 200;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +59,8 @@ export function CTA() {
         throw new Error(data.error || "Failed to join waitlist");
       }
 
+      const data = await res.json();
+      setWaitlistCount(data.count);
       setStatus("success");
       setEmail("");
       analytics.waitlistSubmitted("cta_section");
@@ -77,16 +89,15 @@ export function CTA() {
           variants={itemVariants}
           className="text-sm font-medium text-brand mb-4 tracking-wide uppercase"
         >
-          Early Access
+          Founding Member Access
         </motion.p>
         <motion.h2 variants={itemVariants} className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
           Your stocks filed 23 documents last quarter.{" "}
           <span className="text-gradient">How many did you read?</span>
         </motion.h2>
         <motion.p variants={itemVariants} className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
-          Join the waitlist and be the first to have an AI research analyst
-          reading everything for you. Founding members get locked-in pricing
-          when we launch.
+          Founding members lock in <span className="text-foreground font-semibold">lifetime pricing at current rates</span> — prices increase at launch.
+          Be the first to have an AI research analyst reading everything for you.
         </motion.p>
 
         {/* Email Form */}
@@ -99,9 +110,9 @@ export function CTA() {
             >
               <CheckCircle className="size-6" />
               <div className="text-left">
-                <p className="font-semibold text-lg">You&apos;re on the list!</p>
+                <p className="font-semibold text-lg">You&apos;re in!</p>
                 <p className="text-sm font-medium opacity-80">
-                  We&apos;ll notify you when StoxPulse launches with your founding member pricing.
+                  Your founding member pricing is locked in. We&apos;ll email you when StoxPulse launches.
                 </p>
               </div>
             </motion.div>
@@ -132,7 +143,7 @@ export function CTA() {
                   </>
                 ) : (
                   <>
-                    Join Waitlist
+                    Lock In Founding Price
                     <ArrowRight className="size-4" />
                   </>
                 )}
@@ -150,7 +161,7 @@ export function CTA() {
           {/* Assurance */}
           {status !== "error" && (
             <p className="mt-4 text-xs font-medium text-muted-foreground/60">
-              No spam, ever. Unsubscribe anytime. We respect your inbox.
+              No spam, ever. No credit card required. Unsubscribe anytime.
             </p>
           )}
         </motion.div>
@@ -178,7 +189,7 @@ export function CTA() {
               />
             ))}
           </motion.div>
-          <span>Join <span className="text-foreground font-bold">200+</span> serious investors on the waitlist</span>
+          <span>Join <span className="text-foreground font-bold">{displayCount.toLocaleString()}+</span> serious investors on the waitlist</span>
         </motion.div>
       </motion.div>
     </section>

@@ -15,7 +15,10 @@ import { getCached, setCache } from "../cache";
 
 const { baseUrl, apiKey } = dataConfig.fmp;
 
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+
 async function fmpFetch<T>(endpoint: string, params: Record<string, string> = {}): Promise<T | null> {
+  if (isBuildPhase) return null;
   // Read API key at call time, not module load time (important for serverless)
   const runtimeKey = process.env.FMP_API_KEY ?? "";
   if (!runtimeKey) return null;

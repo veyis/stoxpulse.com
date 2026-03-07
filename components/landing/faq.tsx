@@ -57,6 +57,21 @@ const faqs = [
     answer:
       "Pro and Analyst subscribers receive AI-generated earnings analysis within hours of the call ending — typically before the next trading session. Free tier users receive summaries with a 48-hour delay. Each analysis includes: revenue and EPS vs. estimates, key management quotes, sentiment scoring compared to previous quarters, red flag detection, and forward guidance changes.",
   },
+  {
+    question: "Will the free plan always be free?",
+    answer:
+      "Yes. The free tier includes 5 stocks on your watchlist forever — no credit card required, no trial period, no hidden catches. You only pay if you choose to upgrade to Pro or Analyst for more stocks and real-time features. You can stay on free indefinitely.",
+  },
+  {
+    question: "What happens when I join the waitlist?",
+    answer:
+      "You'll receive one email when StoxPulse launches with your founding member pricing locked in. That's it — no spam, no daily emails, no obligations. Founding members get permanently discounted pricing that won't increase even as we raise prices after launch.",
+  },
+  {
+    question: "Can I cancel anytime?",
+    answer:
+      "Yes. Cancel from your account settings anytime — no questions asked, no lock-in contracts, no cancellation fees. If you cancel a paid plan, you'll keep access through the end of your billing period and then revert to the free tier automatically.",
+  },
 ];
 
 export function FAQ() {

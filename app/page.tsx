@@ -8,6 +8,7 @@ import { HowItWorks } from "@/components/landing/how-it-works";
 import { WhoItsFor } from "@/components/landing/who-its-for";
 import { Pricing } from "@/components/landing/pricing";
 import { FAQ } from "@/components/landing/faq";
+import { Testimonials } from "@/components/landing/testimonials";
 import { RelatedContents } from "@/components/landing/related-contents";
 import { CTA } from "@/components/landing/cta";
 import { Footer } from "@/components/landing/footer";
@@ -61,6 +62,7 @@ export default function Home() {
         <WhoItsFor />
         <Pricing />
         <FAQ />
+        <Testimonials />
         <RelatedContents />
         <CTA />
       </main>

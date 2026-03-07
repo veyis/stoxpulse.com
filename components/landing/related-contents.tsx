@@ -1,33 +1,34 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowRight, Clock } from "lucide-react";
 import { motion, Variants } from "framer-motion";
 
 const articles = [
   {
-    title: "The AI Advantage in Retail Investing",
-    category: "Insights",
-    readTime: "4 MIN READ",
+    title: "How AI Is Changing Stock Analysis in 2026",
+    category: "AI & Investing",
+    readTime: "8 MIN READ",
     image: "/images/related/laptop.png",
-    link: "#",
+    link: "/blog/how-ai-is-changing-stock-analysis",
     description: "How institutional-grade machine learning is finally leveling the playing field for everyday investors.",
   },
   {
-    title: "Escaping the Earnings Call Trap",
-    category: "Analysis",
+    title: "How to Read an Earnings Call Transcript",
+    category: "Earnings",
     readTime: "6 MIN READ",
     image: "/images/related/tablet.png",
-    link: "#",
-    description: "Stop wasting hours listening to management spin. Learn how NLP models extract the pure facts instantly.",
+    link: "/blog/how-to-read-earnings-call-transcript",
+    description: "Stop wasting hours listening to management spin. Learn what to look for and how to spot key signals.",
   },
   {
-    title: "Decoding Insider Trading Patterns",
-    category: "Strategy",
-    readTime: "5 MIN READ",
+    title: "SEC Filings Explained: 10-K vs 10-Q vs 8-K",
+    category: "SEC Filings",
+    readTime: "7 MIN READ",
     image: "/images/related/phone.png",
-    link: "#",
-    description: "The difference between a scheduled 10b5-1 tax sale and a genuine conviction trade from the C-Suite.",
+    link: "/blog/sec-filings-explained-10k-10q-8k",
+    description: "The difference between annual reports, quarterly filings, and material event disclosures — and why each matters.",
   },
 ];
 
@@ -89,11 +90,13 @@ export function RelatedContents() {
           className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8"
         >
           {articles.map((article) => (
-            <motion.a
+            <motion.div
               key={article.title}
-              href={article.link}
               variants={cardVariants}
               whileHover={{ y: -8, transition: { duration: 0.3, ease: "easeOut" } }}
+            >
+            <Link
+              href={article.link}
               className="group relative flex flex-col rounded-3xl border border-border/50 bg-surface-1 overflow-hidden transition-colors hover:border-brand/30 shadow-sm hover:shadow-xl hover:shadow-brand/5"
             >
               {/* Image Container */}
@@ -135,7 +138,8 @@ export function RelatedContents() {
                   <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
                 </div>
               </div>
-            </motion.a>
+            </Link>
+            </motion.div>
           ))}
         </motion.div>
       </div>

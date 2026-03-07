@@ -105,7 +105,7 @@ export function Hero() {
               onClick={() => analytics.ctaClicked("hero", "Get Early Access")}
               className="group inline-flex items-center gap-2 rounded-xl bg-brand px-7 py-3.5 text-base font-semibold text-brand-foreground hover:bg-brand/90 glow-brand transition-all duration-300"
             >
-              Get Early Access — Free
+              Lock In Founding Price — Free
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
             </motion.a>
             <motion.a
@@ -118,6 +118,9 @@ export function Hero() {
               See How It Works
             </motion.a>
           </motion.div>
+          <motion.p variants={itemVariants} className="mt-4 text-xs text-muted-foreground/60">
+            No credit card required. Founding members get lifetime pricing lock-in.
+          </motion.p>
 
           {/* Stats Bar */}
           <motion.div

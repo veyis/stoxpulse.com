@@ -61,8 +61,9 @@ export function Problem() {
             <span className="text-negative">incomplete information</span>
           </h2>
           <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-            Right now, a hedge fund analyst is reading your stocks&apos; SEC
-            filings word by word. You&apos;re reading the headline on CNBC.
+            Right now, a hedge fund analyst earning $350K/year is reading your
+            stocks&apos; SEC filings word by word. You&apos;re reading the
+            headline on CNBC.
           </p>
         </motion.div>
 
